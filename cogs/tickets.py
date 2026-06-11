@@ -268,12 +268,26 @@ class TicketModal(Modal):
         await interaction.response.send_message("✅ Ticket aberto em " + canal.mention + "!", ephemeral=True)
 
         try:
-            embed_dm = discord.Embed(
-                title="🎟️ Ticket Aberto",
-                description=f"Seu ticket foi aberto com sucesso!\nCanal: {canal.mention}",
-                color=DORORO_COLOR
+            import random
+            frases_dm = [
+                "🐲 ⧽*“As portas do santuário se abriram. Aguarde, pois um guardião virá atender seu chamado.”*",
+                "🔥 ⧽*“O rugido foi ouvido. Seu ticket está aberto, e a equipe logo despertará para atendê-lo.”*",
+                "⛩️ ⧽*“Seu pedido atravessou os portões de Ondrakos. Aguarde em silêncio, os guardiões estão a caminho.”*",
+                "🌙 ⧽*“A chama do seu chamado foi acesa. Em breve, um guardião responderá ao seu ticket.”*"
+            ]
+            mensagem_sorteada = random.choice(frases_dm)
+
+            texto_dm_v2 = (
+                "🎟️ |▸**Ticket Aberto › Clã de Ondrakos**\n\n"
+                f"{mensagem_sorteada}\n\n"
+                f"📌 **Acesse seu ticket:** {canal.mention}\n\n"
+                "-# © Ondrakos · 水の竜"
             )
-            await member.send(embed=embed_dm)
+            
+            dm_layout = discord.ui.LayoutView()
+            dm_layout.add_item(discord.ui.Container(discord.ui.TextDisplay(texto_dm_v2), accent_color=DORORO_COLOR))
+
+            await member.send(view=dm_layout)
         except discord.Forbidden:
             log_canal = guild.get_channel(config.LOGS_CANAL_ID())
             if log_canal:
@@ -448,17 +462,33 @@ class AvisarTicketButton(discord.ui.Button):
             return
         for target, overwrite in list(interaction.channel.overwrites.items()):
             if isinstance(target, discord.Member) and overwrite.view_channel and not target.bot:
+                import random
+                frases_aviso = [
+                    "⛩️ ⧽*“As portas do santuário seguem abertas. Responda ao ticket para darmos continuidade ao atendimento.”*",
+                    "🐲 ⧽*“Seu ticket ainda ecoa pelo santuário. Responda assim que possível!”*",
+                    "🐉 ⧽*“O dragão já ouviu seu chamado, mas agora aguarda sua resposta para seguir adiante.”*",
+                    "🔥 ⧽*“A chama do seu ticket ainda está acesa. Responda para manter o atendimento ativo.”*"
+                ]
+                mensagem_sorteada = random.choice(frases_aviso)
+                
+                texto_canal = f"{target.mention}\n\n🎟️ |▸**Presença requisitada no ticket › Clã de Ondrakos**\n\n{mensagem_sorteada}"
+                
+                texto_dm_v2 = (
+                    "🎟️ |▸**Presença requisitada no ticket › Clã de Ondrakos**\n\n"
+                    f"{mensagem_sorteada}\n\n"
+                    f"📌 **Canal:** {interaction.channel.mention}\n\n"
+                    "-# © Ondrakos · 水の竜"
+                )
+                
+                dm_layout = discord.ui.LayoutView()
+                dm_layout.add_item(discord.ui.Container(discord.ui.TextDisplay(texto_dm_v2), accent_color=DORORO_COLOR))
+
                 await interaction.response.send_message(
-                    content=target.mention + " a equipe está aguardando sua resposta!",
+                    content=texto_canal,
                     allowed_mentions=discord.AllowedMentions(users=True),
                 )
                 try:
-                    embed_dm = discord.Embed(
-                        title="🔔 Aviso de Ticket",
-                        description=f"A equipe está aguardando sua resposta no ticket {interaction.channel.mention}!\nPor favor, retorne ao canal e responda.",
-                        color=DORORO_COLOR
-                    )
-                    await target.send(embed=embed_dm)
+                    await target.send(view=dm_layout)
                 except discord.Forbidden:
                     log_canal = interaction.guild.get_channel(config.LOGS_CANAL_ID())
                     if log_canal:
