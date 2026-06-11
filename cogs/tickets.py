@@ -233,6 +233,23 @@ class TicketModal(Modal):
         )
         await interaction.response.send_message("✅ Ticket aberto em " + canal.mention + "!", ephemeral=True)
 
+        try:
+            embed_dm = discord.Embed(
+                title="🎟️ Ticket Aberto",
+                description=f"Seu ticket foi aberto com sucesso!\nCanal: {canal.mention}",
+                color=DORORO_COLOR
+            )
+            await member.send(embed=embed_dm)
+        except discord.Forbidden:
+            log_canal = guild.get_channel(config.LOGS_CANAL_ID())
+            if log_canal:
+                embed_log_dm = discord.Embed(
+                    title="⚠️ Aviso: DM Fechada",
+                    description=f"O ticket {canal.mention} foi aberto por {member.mention}, mas **não foi possível avisá-lo na DM** porque as mensagens diretas estão desativadas.",
+                    color=discord.Color.orange()
+                )
+                await log_canal.send(embed=embed_log_dm)
+
 
 # ── Botões do Ticket Aberto ────────────────────────────────
 class FecharTicketButton(discord.ui.Button):
