@@ -710,7 +710,7 @@ class AnuncioModal(Modal):
                     break
 
             if primeira_imagem:
-                embed_anuncio.set_image(url="attachment://" + primeira_imagem)
+                itens_anuncio.insert(0, discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://" + primeira_imagem)))
 
             # Dividir em lotes de 10 (limite do Discord)
             def lotes(lista, n=10):
@@ -719,7 +719,16 @@ class AnuncioModal(Modal):
 
             # Enviar o anúncio
             eh_evento = dados.get("evento", False)
-            view_anuncio = AnuncioPresencaView() if eh_evento else None
+            view_presenca = AnuncioPresencaView() if eh_evento else None
+            
+            view_final = discord.ui.LayoutView()
+            view_final.add_item(discord.ui.Container(*itens_anuncio, accent_color=DORORO_COLOR))
+            if view_presenca:
+                from discord.ui import ActionRow
+                row = ActionRow()
+                for item in view_presenca.children:
+                    row.add_item(item)
+                view_final.add_item(row)
 
             # ── Canal de Fórum ──────────────────────────────────
             if isinstance(canal_destino, discord.ForumChannel):
@@ -727,11 +736,10 @@ class AnuncioModal(Modal):
                 resto = arquivos[1:]
                 try:
                     thread_with_msg = await canal_destino.create_thread(
-                        name=dados["titulo"],
+                        name=dados["titulo"][:100],
                         content=content or "",
-                        embed=embed_anuncio,
+                        view=view_final,
                         file=primeiro_arquivo,
-                        view=view_anuncio,
                         allowed_mentions=allowed,
                     )
                 except discord.HTTPException as e:
@@ -761,8 +769,6 @@ class AnuncioModal(Modal):
             # ── Canal de Texto Normal ───────────────────────────
             else:
                 primeiro_lote = arquivos[:10] if arquivos else []
-                resto = arquivos[10:]
-                primeiro_lote = arquivos[:10] if arquivos else []
                 resto_txt = arquivos[10:]
                 # Separador antes
                 if dados.get("divisores", True):
@@ -773,15 +779,14 @@ class AnuncioModal(Modal):
                     msg_anuncio = await canal_destino.send(
                         content=content,
                         files=primeiro_lote if primeiro_lote else discord.utils.MISSING,
-                        embed=embed_anuncio,
-                        view=view_anuncio,
+                        view=view_final,
                         allowed_mentions=allowed,
                     )
                 except discord.HTTPException as e:
                     if e.code == 40005:
                         msg_anuncio = await canal_destino.send(
-                            content=content, embed=embed_anuncio,
-                            view=view_anuncio, allowed_mentions=allowed,
+                            content=content,
+                            view=view_final, allowed_mentions=allowed,
                         )
                         await interaction.followup.send("⚠️ Arquivo(s) muito grande(s). Tente comprimir.", ephemeral=True)
                     else:
@@ -935,13 +940,9 @@ class PostagemModal(Modal):
                 await msg.reply("❌ Canal de fórum não encontrado!", delete_after=5)
                 return
 
-            # Montar embed
-            embed_post = discord.Embed(
-                title=dados["titulo"],
-                description=dados["mensagem"],
-                color=DORORO_COLOR,
-            )
-            embed_post.set_footer(text="© Ondrakos · 水の竜")
+            # Montar layout V2
+            texto_post = f"**{dados['titulo']}**\n\n{dados['mensagem']}\n\n-# © Ondrakos · 水の竜"
+            itens_post = [discord.ui.TextDisplay(texto_post)]
 
             # Menções
             texto_mencao, _ = montar_texto_mencao(dados["mencoes"], guild)
@@ -963,7 +964,7 @@ class PostagemModal(Modal):
                         await msg.reply(f"⚠️ Erro ao baixar `{att.filename}`. Pulando este arquivo.", delete_after=5)
 
             if primeira_imagem:
-                embed_post.set_image(url="attachment://" + primeira_imagem)
+                itens_post.insert(0, discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://" + primeira_imagem)))
 
             # Resolver tags do fórum pelo nome
             tags_aplicar = []
@@ -980,13 +981,16 @@ class PostagemModal(Modal):
                     tags_aplicar.append(canal_forum.available_tags[0])
 
             # Criar tópico no fórum com primeiro arquivo embutido
+            view_post = discord.ui.LayoutView()
+            view_post.add_item(discord.ui.Container(*itens_post, accent_color=DORORO_COLOR))
+
             primeiro_arquivo = arquivos[0] if arquivos else discord.utils.MISSING
             resto = arquivos[1:]
             try:
                 thread_with_msg = await canal_forum.create_thread(
-                    name=dados["titulo"],
+                    name=dados["titulo"][:100],
                     content=content or "",
-                    embed=embed_post,
+                    view=view_post,
                     file=primeiro_arquivo,
                     applied_tags=tags_aplicar if tags_aplicar else discord.utils.MISSING,
                     allowed_mentions=allowed,
@@ -1716,11 +1720,11 @@ class RemandarMensagemModal(Modal):
                 from cogs.tickets import TicketView
                 view_recriar = TicketView()
             elif any('ia_pedir' in i for i in ids):
-                from cogs.ia_jornalista import IAPedirAjudaView
-                view_recriar = IAPedirAjudaView()
+                from cogs.ia_jornalista import IAPainelLayout
+                view_recriar = IAPainelLayout(tem_img=False)
             elif any('ia_fechar' in i for i in ids):
-                from cogs.ia_jornalista import IAFecharView
-                view_recriar = IAFecharView()
+                from cogs.ia_jornalista import IABoasVindasLayout
+                view_recriar = IABoasVindasLayout("Usuário", "", tem_img=False)
             elif any('link_button' in i for i in ids):
                 # Recriar botoes de link (ex: /site)
                 view_recriar = View()
