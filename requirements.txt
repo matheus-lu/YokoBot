@@ -1,0 +1,10 @@
+discord.py
+aiosqlite
+aiohttp
+yt-dlp
+Pillow
+PyNaCl
+beautifulsoup4
+requests
+davey
+spotipy

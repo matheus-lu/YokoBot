@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Database
+*.db
+
+# Environment
+.env
+
+# Arquivos com segredos (tokens, chaves de API)
+config.py
+dynamic.json
+cookies.txt
+
+# Node/bgutil
+bgutil-ytdlp-pot-provider/node_modules/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
