@@ -208,12 +208,14 @@ async def setup_verificacao_embed(bot):
     async for msg in canal_ver.history(limit=30):
         if msg.author != bot.user:
             continue
-        if msg.components:
-            for row in msg.components:
-                for comp in getattr(row, "children", [row]):
-                    if getattr(comp, "custom_id", None) == "verificacao_iniciar":
-                        print("✅ Embed de verificação já existe, mantendo.")
-                        return
+        try:
+            raw_data = await bot.http.get_message(canal_ver.id, msg.id)
+            raw_str = str(raw_data)
+            if "verificacao_iniciar" in raw_str or "Ondrakos › Verificação" in raw_str:
+                print("✅ Embed de verificação já existe, mantendo.")
+                return
+        except Exception:
+            pass
 
     img_path = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), "verificar.png")
     if _os.path.exists(img_path):
