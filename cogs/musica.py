@@ -220,7 +220,7 @@ def _iniciar_status_dono(channel_id, bot, frase):
 
 async def resolver_url(entry):
     loop = asyncio.get_event_loop()
-    target = entry.get("webpage_url") or entry.get("url", "")
+    target = entry.get("pagina") or entry.get("webpage_url") or entry.get("url", "")
     if not target and entry.get("titulo"):
         target = "ytsearch:" + entry["titulo"]
     if not target:
@@ -229,13 +229,19 @@ async def resolver_url(entry):
         ydl = get_ydl()
         info = await loop.run_in_executor(None, lambda: ydl.extract_info(target, download=False))
         if info and "url" in info:
+            novo_titulo = info.get("title")
+            if novo_titulo == "videoplayback" or not novo_titulo:
+                novo_titulo = entry.get("titulo") or entry.get("title", "Desconhecido")
+            else:
+                novo_titulo = entry.get("titulo") or novo_titulo
+                
             return {
                 "url": info["url"],
-                "titulo": info.get("title") or entry.get("titulo") or entry.get("title", "Desconhecido"),
-                "duracao": info.get("duration") or entry.get("duracao", 0),
-                "thumbnail": info.get("thumbnail") or entry.get("thumbnail", None),
-                "pagina": info.get("webpage_url") or target,
-                "canal": info.get("uploader") or entry.get("canal", "Desconhecido"),
+                "titulo": novo_titulo,
+                "duracao": entry.get("duracao") or info.get("duration", 0),
+                "thumbnail": entry.get("thumbnail") or info.get("thumbnail", None),
+                "pagina": entry.get("pagina") or info.get("webpage_url") or target,
+                "canal": entry.get("canal") or info.get("uploader", "Desconhecido"),
                 "needs_resolve": False,
             }
     except Exception as e:
