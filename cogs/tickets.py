@@ -452,6 +452,22 @@ class AvisarTicketButton(discord.ui.Button):
                     content=target.mention + " a equipe está aguardando sua resposta!",
                     allowed_mentions=discord.AllowedMentions(users=True),
                 )
+                try:
+                    embed_dm = discord.Embed(
+                        title="🔔 Aviso de Ticket",
+                        description=f"A equipe está aguardando sua resposta no ticket {interaction.channel.mention}!\nPor favor, retorne ao canal e responda.",
+                        color=DORORO_COLOR
+                    )
+                    await target.send(embed=embed_dm)
+                except discord.Forbidden:
+                    log_canal = interaction.guild.get_channel(config.LOGS_CANAL_ID())
+                    if log_canal:
+                        embed_log_dm = discord.Embed(
+                            title="⚠️ Aviso: DM Fechada",
+                            description=f"Não foi possível avisar o membro {target.mention} do ticket {interaction.channel.mention} no privado porque sua DM está trancada.",
+                            color=discord.Color.orange()
+                        )
+                        await log_canal.send(embed=embed_log_dm)
                 return
         await interaction.response.send_message("Membro não encontrado.", ephemeral=True)
 
