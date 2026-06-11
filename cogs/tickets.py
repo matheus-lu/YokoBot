@@ -128,7 +128,10 @@ class TicketDropdown(Select):
         )
         tem_img = any(a.filename == "tickets.png" for a in interaction.message.attachments)
         tem_sep = any(a.filename == "sep_anuncio.png" for a in interaction.message.attachments)
-        await interaction.message.edit(view=TicketLayout(tem_img=tem_img, tem_sep=tem_sep))
+        await interaction.message.edit(
+            view=TicketLayout(tem_img=tem_img, tem_sep=tem_sep),
+            attachments=interaction.message.attachments
+        )
 
 
 # ── Modal de Ticket ────────────────────────────────────────
@@ -268,8 +271,8 @@ class FecharTicketButton(discord.ui.Button):
         partes = canal.name.split("│", 1)
         if len(partes) == 2:
             emoji_atual = partes[0]
-            resto = partes[1]
-            novo_nome = canal.name if resto.startswith("fechado-") else emoji_atual + "│fechado-" + resto
+            resto = partes[1].replace("▸", "", 1).replace("fechado-", "", 1)
+            novo_nome = canal.name if "fechado-" in canal.name else emoji_atual + "│▸fechado-" + resto
         else:
             novo_nome = canal.name if canal.name.startswith("fechado-") else "fechado-" + canal.name
 
@@ -294,12 +297,12 @@ class FecharTicketButton(discord.ui.Button):
             arquivos.append(discord.File(_img_fechado, filename="ticket_fechado.png"))
 
         if arquivos:
-            await interaction.edit_original_response(
+            await interaction.message.edit(
                 attachments=arquivos,
                 view=view
             )
         else:
-            await interaction.edit_original_response(view=view)
+            await interaction.message.edit(view=view)
 
         if autor_id:
             try:
@@ -492,11 +495,31 @@ class ReabrirTicketButton(discord.ui.Button):
 
         partes_r = canal.name.split("│", 1)
         if len(partes_r) == 2:
-            novo_nome = partes_r[0] + "│" + partes_r[1].replace("fechado-", "", 1)
+            base_nome = partes_r[1].replace("▸", "").replace("fechado-", "")
+            novo_nome = partes_r[0] + "│▸" + base_nome
         else:
             novo_nome = canal.name.replace("fechado-", "", 1)
         await canal.edit(category=categoria_abertos, name=novo_nome)
-        await interaction.response.edit_message(view=TicketAbertoLayout(texto="🔓 Ticket reaberto."))
+        
+        # When reopening, we need to restore the open ticket layout
+        import os as _os
+        _base = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+        _img_path = _os.path.join(_base, "ticket_aberto.png")
+        _sep_path = _os.path.join(_base, "sep_anuncio.png")
+        tem_img = _os.path.exists(_img_path) and _os.path.getsize(_img_path) < 9_000_000
+        tem_sep = _os.path.exists(_sep_path) and _os.path.getsize(_sep_path) < 9_000_000
+
+        view = TicketAbertoLayout(texto="🔓 Ticket reaberto.", tem_img=tem_img, tem_sep=tem_sep)
+        arquivos = []
+        if tem_sep:
+            arquivos.append(discord.File(_sep_path, filename="sep_anuncio.png"))
+        if tem_img:
+            arquivos.append(discord.File(_img_path, filename="ticket_aberto.png"))
+
+        if arquivos:
+            await interaction.message.edit(attachments=arquivos, view=view)
+        else:
+            await interaction.message.edit(view=view)
 
 
 class DeletarTicketButton(discord.ui.Button):
