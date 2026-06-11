@@ -171,7 +171,7 @@ DESCRICAO_VER = (
     "• Você concorda em seguir as diretrizes da comunidade\n\n"
     "⚠️ ⧽ Você não terá acesso a alguns recursos do servidor sem concluir a verificação."
 )
-FOOTER_VER = "© Ondrakos · 水の竜 · O dragão guarda o portal."
+FOOTER_VER = "-# © Ondrakos · 水の竜 · O dragão guarda o portal."
 
 
 class VerificacaoLayout(discord.ui.LayoutView):

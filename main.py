@@ -180,7 +180,7 @@ DESCRICAO_SITE = (
     "🌙 ⧽ Se você chegou até aqui, o dragão permitiu sua entrada.\n"
     "Explore, participe, respeite o santuário… e escreva sua própria jornada entre nós."
 )
-FOOTER_SITE = "© Ondrakos · 水の竜"
+FOOTER_SITE = "-# © Ondrakos · 水の竜"
 
 
 class BotaoSite(discord.ui.Button):
