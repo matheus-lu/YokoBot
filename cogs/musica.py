@@ -242,6 +242,7 @@ async def resolver_url(entry):
                 "thumbnail": entry.get("thumbnail") or info.get("thumbnail", None),
                 "pagina": entry.get("pagina") or info.get("webpage_url") or target,
                 "canal": entry.get("canal") or info.get("uploader", "Desconhecido"),
+                "titulo_embed": entry.get("titulo_embed"),
                 "needs_resolve": False,
             }
     except Exception as e:
@@ -336,7 +337,7 @@ async def buscar_info(query):
                 "titulo": e.get("title", "Desconhecido"),
                 "duracao": e.get("duration", 0),
                 "thumbnail": e.get("thumbnail") or (
-                    "https://img.youtube.com/vi/" + vid_id + "/mqdefault.jpg" if vid_id else None
+                    "https://img.youtube.com/vi/" + vid_id + "/maxresdefault.jpg" if vid_id else None
                 ),
                 "pagina": webpage,
                 "canal": e.get("uploader") or e.get("channel") or "Desconhecido",
@@ -565,7 +566,7 @@ class PlayerLayoutTocando(discord.ui.LayoutView):
         nome_playlist = resultado.get("titulo") if resultado["tipo"] == "playlist" else ""
         for m in musicas:
             if nome_playlist:
-                m["titulo_embed"] = f"<:_playlist:1514529877770899546> {nome_playlist} - {m['titulo']}"
+                m["titulo_embed"] = f"<:_playlist:1514529877770899546> [{nome_playlist}] | {m['titulo']}"
             fila.append(m)
         if not vc.is_playing() and not vc.is_paused():
             await tocar_proxima(guild, bot)
@@ -758,7 +759,7 @@ class PlayerLayoutSemMusica(discord.ui.LayoutView):
         nome_playlist = resultado.get("titulo") if resultado["tipo"] == "playlist" else ""
         for m in musicas:
             if nome_playlist:
-                m["titulo_embed"] = f"<:_playlist:1514529877770899546> {nome_playlist} - {m['titulo']}"
+                m["titulo_embed"] = f"<:_playlist:1514529877770899546> [{nome_playlist}] | {m['titulo']}"
             fila.append(m)
         if not vc.is_playing() and not vc.is_paused():
             await tocar_proxima(guild, bot)
@@ -805,7 +806,7 @@ class AdicionarMusicaModal(Modal):
             nome_playlist = resultado.get("titulo", "")
             for m in musicas:
                 if nome_playlist:
-                    m["titulo_embed"] = f"<:_playlist:1514529877770899546> {nome_playlist} - {m['titulo']}"
+                    m["titulo_embed"] = f"<:_playlist:1514529877770899546> [{nome_playlist}] | {m['titulo']}"
                 fila.append(m)
             if not vc.is_playing() and not vc.is_paused():
                 await tocar_proxima(guild, bot)
@@ -1157,7 +1158,7 @@ class _PersistentMusicaHandler(discord.ui.View):
         nome_playlist = resultado.get("titulo") if resultado["tipo"] == "playlist" else ""
         for m in musicas:
             if nome_playlist:
-                m["titulo_embed"] = f"<:_playlist:1514529877770899546> {nome_playlist} - {m['titulo']}"
+                m["titulo_embed"] = f"<:_playlist:1514529877770899546> [{nome_playlist}] | {m['titulo']}"
             fila.append(m)
         if not vc.is_playing() and not vc.is_paused():
             await tocar_proxima(guild, bot)
