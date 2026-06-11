@@ -481,7 +481,6 @@ class PlayerLayoutTocando(discord.ui.LayoutView):
             else:
                 vc.stop()
             await asyncio.sleep(0.2)
-            await atualizar_status_canal_voz(interaction.guild, "", bot=bot)
             await vc.disconnect()
             await bot.change_presence(status=discord.Status.online, activity=discord.Activity(type=discord.ActivityType.playing, name="GtaV Roleplay"))
             await atualizar_embed_player(interaction.guild)
@@ -726,7 +725,6 @@ class PlayerLayoutSemMusica(discord.ui.LayoutView):
             else:
                 vc.stop()
             await asyncio.sleep(0.2)
-            await atualizar_status_canal_voz(interaction.guild, "", bot=interaction.client)
             await vc.disconnect()
             await interaction.client.change_presence(status=discord.Status.online, activity=discord.Activity(type=discord.ActivityType.playing, name="GtaV Roleplay"))
         await atualizar_embed_player(interaction.guild)
@@ -914,7 +912,13 @@ async def atualizar_status_canal_voz(guild, titulo: str = "", bot=None):
     try:
         if titulo:
             if guild.id not in status_canal_original:
-                status_canal_original[guild.id] = ""
+                status_atual = ""
+                try:
+                    resp = await bot.http.request(discord.http.Route("GET", "/channels/{channel_id}/voice-status", channel_id=channel_id))
+                    status_atual = resp.get("status", "") if resp else ""
+                except Exception:
+                    pass
+                status_canal_original[guild.id] = status_atual
             await _set_status_canal_voz(channel_id, bot, "🎵 " + titulo)
         else:
             original = status_canal_original.pop(guild.id, "")
@@ -1038,7 +1042,6 @@ class _PersistentMusicaHandler(discord.ui.View):
             else:
                 vc.stop()
             await asyncio.sleep(0.2)
-            await atualizar_status_canal_voz(interaction.guild, "", bot=bot)
             await vc.disconnect()
             await bot.change_presence(status=discord.Status.online, activity=discord.Activity(type=discord.ActivityType.playing, name="GtaV Roleplay"))
             await atualizar_embed_player(interaction.guild)
