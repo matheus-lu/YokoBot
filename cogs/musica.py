@@ -109,10 +109,10 @@ YDL_OPTIONS_SINGLE = {
     "noplaylist": True,
     "source_address": "0.0.0.0",
     "ignoreerrors": False,
-    # "cookiefile": config.COOKIES_PATH,
+    "cookiefile": config.COOKIES_PATH,
     "js_runtimes": {"node": {"path": "/usr/bin/node"}},
     "extractor_args": {
-        "youtube": {"player_client": ["android", "ios", "web"]},
+        # "youtube": {"player_client": ["android", "ios", "web"]},
         "youtubepot-bgutilscript": {"server_home": ["/application/bgutil-ytdlp-pot-provider/server"]},
     },
 }
