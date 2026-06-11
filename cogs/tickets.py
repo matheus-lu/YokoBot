@@ -280,7 +280,7 @@ class TicketModal(Modal):
             texto_dm_v2 = (
                 "🎟️ |▸**Ticket Aberto › Clã de Ondrakos**\n\n"
                 f"{mensagem_sorteada}\n\n"
-                f"📌 **Acesse seu ticket:** {canal.mention}\n\n"
+                f"📌 ⧽**Acesse seu ticket:** {canal.mention}\n\n"
                 "-# © Ondrakos · 水の竜"
             )
             
@@ -476,7 +476,7 @@ class AvisarTicketButton(discord.ui.Button):
                 texto_dm_v2 = (
                     "🎟️ |▸**Presença requisitada no ticket › Clã de Ondrakos**\n\n"
                     f"{mensagem_sorteada}\n\n"
-                    f"📌 **Canal:** {interaction.channel.mention}\n\n"
+                    f"📌 ⧽**Canal:** {interaction.channel.mention}\n\n"
                     "-# © Ondrakos · 水の竜"
                 )
                 
