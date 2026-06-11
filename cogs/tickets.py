@@ -126,7 +126,9 @@ class TicketDropdown(Select):
         await interaction.response.send_modal(
             TicketModal(categoria=categoria, nome_categoria=nomes_display[categoria])
         )
-        await interaction.message.edit(view=TicketLayout())
+        tem_img = any(a.filename == "tickets.png" for a in interaction.message.attachments)
+        tem_sep = any(a.filename == "sep_anuncio.png" for a in interaction.message.attachments)
+        await interaction.message.edit(view=TicketLayout(tem_img=tem_img, tem_sep=tem_sep))
 
 
 # ── Modal de Ticket ────────────────────────────────────────
@@ -380,18 +382,24 @@ class TicketLayout(discord.ui.LayoutView):
         if tem_sep:
             itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://sep_anuncio.png")))
             itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+        itens.extend([
+            discord.ui.TextDisplay("**🎟️ |▸ Portal de Tickets › Clã do Dragão**"),
+            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
+            discord.ui.TextDisplay(
+                "🐉 Bem-vindo(a) ao Portal de Atendimento\n\n"
+                "🗣️⧽Precisa falar com a equipe, tirar uma dúvida ou pedir algum serviço?\n"
+                "Abra um ticket e conte o que você precisa, sem pressa e do seu jeito.\n\n"
+                "⛩️⧽Este espaço é para pedidos, suporte, dúvidas, serviços e assuntos que precisam ser tratados com mais calma fora dos canais principais.\n\n"
+                "🪭⧽Escolha a opção certa abaixo e aguarde alguém da equipe aparecer pelo portal.\n"
+                "Use com respeito para manter a energia do servidor leve e organizada.\n\n"
+            ),
+            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
+        ])
         if tem_img:
             itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://tickets.png")))
             itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
         itens.extend([
-            discord.ui.TextDisplay("**📋 │▸Central de Atendimento — Ondrakos**"),
-            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
-            discord.ui.TextDisplay(
-                "🐉 Bem-vindo(a) ao Portal de Atendimento\n"
-                "Selecione o motivo do seu ticket abaixo."
-            ),
-            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
-            discord.ui.TextDisplay("-# Apenas abra um ticket se realmente precisar."),
+            discord.ui.TextDisplay("-# Selecione o motivo do seu ticket abaixo."),
             discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
             discord.ui.ActionRow(TicketDropdown()),
         ])
