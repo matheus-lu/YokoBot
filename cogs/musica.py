@@ -112,7 +112,7 @@ YDL_OPTIONS_SINGLE = {
     "cookiefile": config.COOKIES_PATH,
     "js_runtimes": {"node": {"path": "/usr/bin/node"}},
     "extractor_args": {
-        # "youtube": {"player_client": ["android", "ios", "web"]},
+        "youtube": {"player_client": ["web"]},
         "youtubepot-bgutilscript": {"server_home": ["/application/bgutil-ytdlp-pot-provider/server"]},
     },
 }
