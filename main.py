@@ -238,8 +238,11 @@ async def setup_site_embed(bot):
 
     async for msg in canal.history(limit=20):
         if msg.author == bot.user and msg.components:
-            print("✅ Embed do site já existe, mantendo.")
-            return
+            for row in msg.components:
+                for comp in getattr(row, "children", [row]):
+                    if getattr(comp, "url", None):
+                        print("✅ Embed do site já existe, mantendo.")
+                        return
 
     img_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "site.png")
     if os.path.exists(img_path):

@@ -208,16 +208,11 @@ async def setup_verificacao_embed(bot):
     async for msg in canal_ver.history(limit=30):
         if msg.author != bot.user:
             continue
-        # V2: tem components mas não tem embeds tradicionais
-        if msg.components and not msg.embeds:
-            print("✅ Embed de verificação já existe (V2), mantendo.")
-            return
-        # Legado: tem embed com botão de verificação
-        if msg.embeds and msg.components:
+        if msg.components:
             for row in msg.components:
-                for comp in (row.children if hasattr(row, "children") else [row]):
+                for comp in getattr(row, "children", [row]):
                     if getattr(comp, "custom_id", None) == "verificacao_iniciar":
-                        print("✅ Embed de verificação já existe (legado), mantendo.")
+                        print("✅ Embed de verificação já existe, mantendo.")
                         return
 
     img_path = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), "verificar.png")

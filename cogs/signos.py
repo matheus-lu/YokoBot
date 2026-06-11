@@ -114,13 +114,13 @@ class SignosLayout(discord.ui.LayoutView):
         row3 = discord.ui.ActionRow(*[SignoButton(s, 2) for s in SIGNOS[8:12]])
 
         self.add_item(discord.ui.Container(
-            discord.ui.TextDisplay("**🐉 │▸Escolha seu Signo Japonês 🍀**"),
-            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
-            discord.ui.TextDisplay(EMBED_DESC),
-            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
             discord.ui.MediaGallery(
                 discord.MediaGalleryItem("attachment://signos.png"),
             ),
+            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
+            discord.ui.TextDisplay("**🐉 │▸Escolha seu Signo Japonês 🍀**"),
+            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
+            discord.ui.TextDisplay(EMBED_DESC),
             discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
             discord.ui.TextDisplay("-# 十二支 — Juunishi 星座"),
             discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
@@ -161,45 +161,25 @@ async def setup_signos_embed(bot):
         print(f"SIGNOS: ⚠️ Canal {SIGNOS_CANAL_ID} nao encontrado.")
         return
         
-    msg_existente = None
     async for msg in canal.history(limit=20):
         if msg.author == bot.user:
-            # V2 (LayoutView) tem componentes com ID "signo_v2_"
-            if msg.components and any(getattr(c, "custom_id", "").startswith("signo_v2_") for row in msg.components for c in getattr(row, "children", [row])):
-                msg_existente = msg
-                break
-            # Legado
-            elif msg.embeds and ("juunishi" in str(msg.embeds[0].title).lower() or "signo" in str(msg.embeds[0].title).lower()):
-                msg_existente = msg
-                break
+            try:
+                await msg.delete()
+            except Exception:
+                pass
                 
     import os as _os
     _img = _os.path.normpath(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", SIGNOS_IMAGE_PATH))
     tem_imagem = _os.path.exists(_img) and _os.path.getsize(_img) < 9_000_000
     
     view = SignosLayout() if tem_imagem else SignosLayoutSemImagem()
-    
-    if msg_existente:
-        if msg_existente.reactions:
-            try:
-                await msg_existente.clear_reactions()
-            except Exception:
-                pass
-        
-        # Edita a mensagem removendo o embed antigo e injetando o LayoutView V2
-        try:
-            await msg_existente.edit(embed=None, view=view)
-        except Exception:
-            # Se a API reclamar de enviar attachments no edit de LayoutView sem fornecer novos, mandamos de novo a msg abaixo
-            pass
-        print("✅ Embed de signos atualizado para V2 (LayoutView).")
+
+    if tem_imagem:
+        _arquivo = discord.File(_img, filename="signos.png")
+        await canal.send(file=_arquivo, view=view)
     else:
-        if tem_imagem:
-            _arquivo = discord.File(_img, filename="signos.png")
-            await canal.send(file=_arquivo, view=view)
-        else:
-            await canal.send(view=view)
-        print("✅ Embed de signos criado em V2!")
+        await canal.send(view=view)
+    print("✅ Embed de signos recriado/atualizado em V2!")
 
 
 async def setup(bot):
