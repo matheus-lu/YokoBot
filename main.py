@@ -1135,41 +1135,40 @@ async def on_ready():
             await bv_cog.atualizar_contador(guild)
         print("✅ Contador de membros atualizado!")
 
-    # Setup embed fixo dos tickets (só cria se não existir)
-    from cogs.tickets import TicketView
+    # Setup embed fixo dos tickets (V2 LayoutView)
+    from cogs.tickets import TicketLayout
     canal_tickets = bot.get_channel(config.TICKET_CANAL_ID())
     if canal_tickets:
-        tem_embed = False
+        tem_v2 = False
         async for msg in canal_tickets.history(limit=10):
-            if msg.author == bot.user and msg.embeds:
-                tem_embed = True
-                break
-        if not tem_embed:
-            embed = discord.Embed(
-                title="🎟️│▸ Portal de Tickets › Clã do Dragão",
-                description=(
-                    "🗣️⧽Precisa falar com a equipe, tirar uma dúvida ou pedir algum serviço? "
-                    "Abra um ticket e conte o que você precisa, sem pressa e do seu jeito.\n\n"
-                    "⛩️⧽Este espaço é para pedidos, suporte, dúvidas, serviços e assuntos que precisam ser tratados com mais calma fora dos canais principais.\n\n"
-                    "🪭⧽Escolha a opção certa abaixo e aguarde alguém da equipe aparecer pelo portal. "
-                    "Use com respeito para manter a energia do servidor leve e organizada."
-                ),
-                color=DORORO_COLOR,
-            )
-            embed.set_footer(text="O dragão guarda o portal. Entre apenas quando precisar.")
+            if msg.author == bot.user:
+                try:
+                    raw_data = await bot.http.get_message(canal_tickets.id, msg.id)
+                    if "ticket_dropdown" in str(raw_data):
+                        tem_v2 = True
+                        break
+                except Exception:
+                    pass
+        if not tem_v2:
             import os as _os
-            _ticket_img = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "tickets.png")
-            if _os.path.exists(_ticket_img) and _os.path.getsize(_ticket_img) < 9_000_000:
-                embed.set_image(url="attachment://tickets.png")
-                await canal_tickets.send(embed=embed, view=TicketView(), file=discord.File(_ticket_img, filename="tickets.png"))
-            elif config.IMAGEM_URL:
-                embed.set_image(url=config.IMAGEM_URL)
-                await canal_tickets.send(embed=embed, view=TicketView())
+            _base = _os.path.dirname(_os.path.abspath(__file__))
+            _ticket_img = _os.path.join(_base, "tickets.png")
+            _sep_img    = _os.path.join(_base, "sep_anuncio.png")
+            tem_img = _os.path.exists(_ticket_img) and _os.path.getsize(_ticket_img) < 9_000_000
+            tem_sep = _os.path.exists(_sep_img) and _os.path.getsize(_sep_img) < 9_000_000
+            view = TicketLayout(tem_img=tem_img, tem_sep=tem_sep)
+            arquivos = []
+            if tem_sep:
+                arquivos.append(discord.File(_sep_img, filename="sep_anuncio.png"))
+            if tem_img:
+                arquivos.append(discord.File(_ticket_img, filename="tickets.png"))
+            if arquivos:
+                await canal_tickets.send(files=arquivos, view=view)
             else:
-                await canal_tickets.send(embed=embed, view=TicketView())
-            print("✅ Embed de tickets criado!")
+                await canal_tickets.send(view=view)
+            print("\u2705 Embed de tickets criado em V2!")
         else:
-            print("✅ Embed de tickets já existe, mantendo.")
+            print("\u2705 Embed de tickets j\u00e1 existe, mantendo.")
 
     # Setup embed fixo do cargo de historias
     from cogs.historias import setup_historias_embed
