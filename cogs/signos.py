@@ -76,7 +76,7 @@ class SignoButton(discord.ui.Button):
     def __init__(self, signo_info, row):
         super().__init__(
             style=discord.ButtonStyle.secondary,
-            label=signo_info["label"],
+            label=None,
             emoji=discord.PartialEmoji(name=signo_info["emoji_name"], id=signo_info["emoji_id"]),
             custom_id=f"signo_v2_{signo_info['cargo_id']}",
             row=row
