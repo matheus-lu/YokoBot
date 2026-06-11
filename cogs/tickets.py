@@ -126,12 +126,26 @@ class TicketDropdown(Select):
         await interaction.response.send_modal(
             TicketModal(categoria=categoria, nome_categoria=nomes_display[categoria])
         )
-        tem_img = any(a.filename == "tickets.png" for a in interaction.message.attachments)
-        tem_sep = any(a.filename == "sep_anuncio.png" for a in interaction.message.attachments)
-        await interaction.message.edit(
-            view=TicketLayout(tem_img=tem_img, tem_sep=tem_sep),
-            attachments=interaction.message.attachments
-        )
+        import os as _os
+        _base = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+        _img_path = _os.path.join(_base, "tickets.png")
+        _sep_path = _os.path.join(_base, "sep_anuncio.png")
+        tem_img = _os.path.exists(_img_path) and _os.path.getsize(_img_path) < 9_000_000
+        tem_sep = _os.path.exists(_sep_path) and _os.path.getsize(_sep_path) < 9_000_000
+        
+        arquivos = []
+        if tem_sep:
+            arquivos.append(discord.File(_sep_path, filename="sep_anuncio.png"))
+        if tem_img:
+            arquivos.append(discord.File(_img_path, filename="tickets.png"))
+
+        if arquivos:
+            await interaction.message.edit(
+                view=TicketLayout(tem_img=tem_img, tem_sep=tem_sep),
+                attachments=arquivos
+            )
+        else:
+            await interaction.message.edit(view=TicketLayout(tem_img=tem_img, tem_sep=tem_sep))
 
 
 # ── Modal de Ticket ────────────────────────────────────────
@@ -288,7 +302,24 @@ class FecharTicketButton(discord.ui.Button):
         tem_fechado = _os.path.exists(_img_fechado) and _os.path.getsize(_img_fechado) < 9_000_000
         tem_sep = _os.path.exists(_sep_fechado) and _os.path.getsize(_sep_fechado) < 9_000_000
 
-        view = TicketFechadoLayout(texto="🔒 Ticket fechado. Canal movido para arquivos.", tem_img=tem_fechado, tem_sep=tem_sep)
+        staff_mention = "<@&" + str(config.STAFF_MENTION_ROLE_ID()) + ">"
+        membro = f"<@{autor_id}>" if autor_id else "Usuário Desconhecido"
+        nome_limpo = canal.name.replace("fechado-", "")
+        
+        texto_fechado = (
+            f"{membro} | {staff_mention}\n\n"
+            f"**🐉 • {nome_limpo}**\n\n"
+            "A equipe já está ciente da abertura do seu ticket, basta aguardar que "
+            "em breve será atendido.\n\n"
+            "**ALGUMAS INFORMAÇÕES IMPORTANTES**\n"
+            "🔴 Não floode no ticket\n"
+            "🔴 Não marque membros da equipe\n"
+            "🔴 Não abra ticket sem necessidade!\n\n"
+            f"**📝 Motivo**\n{motivo}\n\n"
+            "🔒 **Ticket fechado.**"
+        )
+
+        view = TicketFechadoLayout(texto=texto_fechado, tem_img=tem_fechado, tem_sep=tem_sep)
         
         arquivos = []
         if tem_sep:
@@ -509,7 +540,32 @@ class ReabrirTicketButton(discord.ui.Button):
         tem_img = _os.path.exists(_img_path) and _os.path.getsize(_img_path) < 9_000_000
         tem_sep = _os.path.exists(_sep_path) and _os.path.getsize(_sep_path) < 9_000_000
 
-        view = TicketAbertoLayout(texto="🔓 Ticket reaberto.", tem_img=tem_img, tem_sep=tem_sep)
+        motivo = "Desconhecido"
+        autor_id = None
+        if hasattr(bot, 'db') and bot.db:
+            dados = await bot.db.get_ticket(canal.id)
+            if dados:
+                autor_id = dados["user_id"]
+                if dados["descricao"]:
+                    motivo = dados["descricao"]
+
+        staff_mention = "<@&" + str(config.STAFF_MENTION_ROLE_ID()) + ">"
+        membro = f"<@{autor_id}>" if autor_id else "Usuário Desconhecido"
+
+        texto_reaberto = (
+            f"{membro} | {staff_mention}\n\n"
+            f"**🐉 • {novo_nome}**\n\n"
+            "A equipe já está ciente da abertura do seu ticket, basta aguardar que "
+            "em breve será atendido.\n\n"
+            "**ALGUMAS INFORMAÇÕES IMPORTANTES**\n"
+            "🔴 Não floode no ticket\n"
+            "🔴 Não marque membros da equipe\n"
+            "🔴 Não abra ticket sem necessidade!\n\n"
+            f"**📝 Motivo**\n{motivo}\n\n"
+            "🔓 **Ticket reaberto.**"
+        )
+
+        view = TicketAbertoLayout(texto=texto_reaberto, tem_img=tem_img, tem_sep=tem_sep)
         arquivos = []
         if tem_sep:
             arquivos.append(discord.File(_sep_path, filename="sep_anuncio.png"))
