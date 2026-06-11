@@ -230,8 +230,7 @@ class TicketModal(Modal):
         staff_mention = "<@&" + str(config.STAFF_MENTION_ROLE_ID()) + ">"
 
         texto_ticket = (
-            f"{member.mention} | {staff_mention}\n\n"
-            f"**🐉 • {canal.name}**\n\n"
+            f"**{canal.name}**\n\n"
             "🎟️ |▸**TICKET ABERTO › Clã de Ondrakos**\n\n"
             "*A equipe já está ciente da abertura do seu ticket.*\n"
             "*Agora basta aguardar com calma que, em breve, um membro responsável irá atender sua solicitação.*\n\n"
@@ -244,7 +243,8 @@ class TicketModal(Modal):
             "<:_avisoamarelo:1507463130098438386>⧽Mantenha o respeito durante todo o atendimento\n\n"
             "🐉 ⧽Seu chamado foi recebido pelos guardiões do Clã Ondrakos.\n"
             "Aguarde no santuário, em breve sua voz será ouvida.\n\n"
-            f"**📝 Motivo**\n{self.descricao.value}"
+            f"**📝 Motivo**\n{self.descricao.value}\n\n"
+            f"{member.mention} | {staff_mention}"
         )
 
         import os as _os
@@ -358,8 +358,7 @@ class FecharTicketButton(discord.ui.Button):
         nome_limpo = canal.name.replace("fechado-", "")
         
         texto_fechado = (
-            f"{membro} | {staff_mention}\n\n"
-            f"**🐉 • {nome_limpo}**\n\n"
+            f"**{nome_limpo}**\n\n"
             "🎟️ |▸**TICKET FECHADO › Clã de Ondrakos**\n\n"
             "*Seu ticket foi encerrado pela equipe do Clã Ondrakos.*\n"
             "Agradecemos por ter entrado em contato e esperamos que sua solicitação tenha sido resolvida da melhor forma possível.\n\n"
@@ -371,7 +370,8 @@ class FecharTicketButton(discord.ui.Button):
             "🐉⧽Seu chamado foi registrado no santuário.\n"
             "Quando necessário, os guardiões voltarão a ouvir sua voz.\n\n"
             f"**📝 Motivo**\n{motivo}\n\n"
-            "🔒 **Ticket fechado.**"
+            "🔒 **Ticket fechado.**\n\n"
+            f"{membro} | {staff_mention}"
         )
 
         view = TicketFechadoLayout(texto=texto_fechado, tem_img=tem_fechado, tem_sep=tem_sep)
@@ -602,8 +602,7 @@ class ReabrirTicketButton(discord.ui.Button):
         membro = f"<@{autor_id}>" if autor_id else "Usuário Desconhecido"
 
         texto_reaberto = (
-            f"{membro} | {staff_mention}\n\n"
-            f"**🐉 • {novo_nome}**\n\n"
+            f"**{novo_nome}**\n\n"
             "🎟️ |▸**TICKET REABERTO › Clã de Ondrakos**\n\n"
             "*Seu ticket foi reaberto pela equipe.*\n"
             "Aguarde o prosseguimento do seu atendimento.\n\n"
@@ -615,7 +614,8 @@ class ReabrirTicketButton(discord.ui.Button):
             "<:_avisoamarelo:1507463130098438386>⧽Não abra vários tickets sobre o mesmo assunto\n"
             "<:_avisoamarelo:1507463130098438386>⧽Mantenha o respeito durante todo o atendimento\n\n"
             f"**📝 Motivo**\n{motivo}\n\n"
-            "🔓 **Ticket reaberto.**"
+            "🔓 **Ticket reaberto.**\n\n"
+            f"{membro} | {staff_mention}"
         )
 
         view = TicketAbertoLayout(texto=texto_reaberto, tem_img=tem_img, tem_sep=tem_sep)
