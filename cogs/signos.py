@@ -106,49 +106,60 @@ class SignoButton(discord.ui.Button):
 
 
 class SignosLayout(discord.ui.LayoutView):
-    def __init__(self):
+    def __init__(self, tem_sep=True):
         super().__init__(timeout=None)
         
         row1 = discord.ui.ActionRow(*[SignoButton(s, 0) for s in SIGNOS[0:4]])
         row2 = discord.ui.ActionRow(*[SignoButton(s, 1) for s in SIGNOS[4:8]])
         row3 = discord.ui.ActionRow(*[SignoButton(s, 2) for s in SIGNOS[8:12]])
 
-        self.add_item(discord.ui.Container(
-            discord.ui.MediaGallery(
-                discord.MediaGalleryItem("attachment://signos.png"),
-            ),
+        itens = [
+            discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://signos.png")),
             discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
             discord.ui.TextDisplay("**🐉 │▸Escolha seu Signo Japonês 🍀**"),
             discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
             discord.ui.TextDisplay(EMBED_DESC),
             discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
-            discord.ui.MediaGallery(
-                discord.MediaGalleryItem("attachment://sep_anuncio.png"),
-            ),
+        ]
+        
+        if tem_sep:
+            itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://sep_anuncio.png")))
+            itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+            
+        itens.extend([
             discord.ui.TextDisplay("-# 十二支 — Juunishi 星座"),
             discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
-            row1, row2, row3,
-            accent_color=discord.Color.from_rgb(31, 139, 76),
-        ))
+            row1, row2, row3
+        ])
+
+        self.add_item(discord.ui.Container(*itens, accent_color=discord.Color.from_rgb(31, 139, 76)))
 
 class SignosLayoutSemImagem(discord.ui.LayoutView):
-    def __init__(self):
+    def __init__(self, tem_sep=True):
         super().__init__(timeout=None)
         
         row1 = discord.ui.ActionRow(*[SignoButton(s, 0) for s in SIGNOS[0:4]])
         row2 = discord.ui.ActionRow(*[SignoButton(s, 1) for s in SIGNOS[4:8]])
         row3 = discord.ui.ActionRow(*[SignoButton(s, 2) for s in SIGNOS[8:12]])
 
-        self.add_item(discord.ui.Container(
+        itens = [
             discord.ui.TextDisplay("**🐉 │▸Escolha seu Signo Japonês 🍀**"),
             discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
             discord.ui.TextDisplay(EMBED_DESC),
             discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
+        ]
+        
+        if tem_sep:
+            itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://sep_anuncio.png")))
+            itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+            
+        itens.extend([
             discord.ui.TextDisplay("-# 十二支 — Juunishi 星座"),
             discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
-            row1, row2, row3,
-            accent_color=discord.Color.from_rgb(31, 139, 76),
-        ))
+            row1, row2, row3
+        ])
+
+        self.add_item(discord.ui.Container(*itens, accent_color=discord.Color.from_rgb(31, 139, 76)))
 
 class SignosCog(commands.Cog):
     def __init__(self, bot):
@@ -173,13 +184,21 @@ async def setup_signos_embed(bot):
                 
     import os as _os
     _img = _os.path.normpath(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", SIGNOS_IMAGE_PATH))
-    tem_imagem = _os.path.exists(_img) and _os.path.getsize(_img) < 9_000_000
+    _img_sep = _os.path.normpath(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "sep_anuncio.png"))
     
-    view = SignosLayout() if tem_imagem else SignosLayoutSemImagem()
+    tem_imagem = _os.path.exists(_img) and _os.path.getsize(_img) < 9_000_000
+    tem_sep = _os.path.exists(_img_sep) and _os.path.getsize(_img_sep) < 9_000_000
+    
+    view = SignosLayout(tem_sep=tem_sep) if tem_imagem else SignosLayoutSemImagem(tem_sep=tem_sep)
 
+    arquivos = []
     if tem_imagem:
-        _arquivo = discord.File(_img, filename="signos.png")
-        await canal.send(file=_arquivo, view=view)
+        arquivos.append(discord.File(_img, filename="signos.png"))
+    if tem_sep:
+        arquivos.append(discord.File(_img_sep, filename="sep_anuncio.png"))
+
+    if arquivos:
+        await canal.send(files=arquivos, view=view)
     else:
         await canal.send(view=view)
     print("✅ Embed de signos recriado/atualizado em V2!")
