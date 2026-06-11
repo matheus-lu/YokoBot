@@ -147,13 +147,10 @@ class TicketFechadoDMLayout(discord.ui.LayoutView):
         try:
             canal_ticket = interaction.client.get_channel(self.canal_id)
             if canal_ticket:
-                embed_nota = discord.Embed(
-                    title="⭐ Avaliação recebida",
-                    description=f"<@{self.autor_id}> avaliou o atendimento com **{estrelas}** ({nota}/5).",
-                    color=DORORO_COLOR,
-                )
-                embed_nota.set_footer(text="© Ondrakos · 水の竜")
-                await canal_ticket.send(embed=embed_nota)
+                texto_nota = f"**⭐ Avaliação recebida**\n\n<@{self.autor_id}> avaliou o atendimento com **{estrelas}** ({nota}/5).\n\n-# © Ondrakos · 水の竜"
+                nota_layout = discord.ui.LayoutView()
+                nota_layout.add_item(discord.ui.Container(discord.ui.TextDisplay(texto_nota), accent_color=DORORO_COLOR))
+                await canal_ticket.send(view=nota_layout)
         except Exception as e:
             print(f"[Tickets] Erro ao enviar nota no canal: {e}")
 
@@ -476,8 +473,10 @@ class AssumirTicketButton(discord.ui.Button):
         if not is_staff(interaction):
             await interaction.response.send_message("Apenas a staff pode assumir tickets!", ephemeral=True)
             return
-        embed = discord.Embed(description="✋ Ticket assumido por " + interaction.user.mention + "!", color=discord.Color.green())
-        await interaction.response.send_message(embed=embed)
+        texto_assumir = f"✋ **Ticket assumido por {interaction.user.mention}!**"
+        layout_assumir = discord.ui.LayoutView()
+        layout_assumir.add_item(discord.ui.Container(discord.ui.TextDisplay(texto_assumir), accent_color=discord.Color.green()))
+        await interaction.response.send_message(view=layout_assumir)
 
 
 class AvisarTicketButton(discord.ui.Button):
@@ -500,6 +499,8 @@ class AvisarTicketButton(discord.ui.Button):
                 mensagem_sorteada = random.choice(frases_aviso)
                 
                 texto_canal = f"{target.mention}\n\n🎟️ |▸**Presença requisitada no ticket › Clã de Ondrakos**\n\n{mensagem_sorteada}"
+                canal_layout = discord.ui.LayoutView()
+                canal_layout.add_item(discord.ui.Container(discord.ui.TextDisplay(texto_canal), accent_color=DORORO_COLOR))
                 
                 texto_dm_v2 = (
                     "🎟️ |▸**Presença requisitada no ticket › Clã de Ondrakos**\n\n"
@@ -512,7 +513,7 @@ class AvisarTicketButton(discord.ui.Button):
                 dm_layout.add_item(discord.ui.Container(discord.ui.TextDisplay(texto_dm_v2), accent_color=DORORO_COLOR))
 
                 await interaction.response.send_message(
-                    content=texto_canal,
+                    view=canal_layout,
                     allowed_mentions=discord.AllowedMentions(users=True),
                 )
                 try:
