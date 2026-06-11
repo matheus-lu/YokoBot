@@ -269,14 +269,14 @@ class RegrasLayout(discord.ui.LayoutView):
 
         itens = []
         if tem_img:
-            itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://mandamentos.png")))
+            itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://sep_anuncio.png")))
             itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
         itens.append(discord.ui.TextDisplay(REGRAS_TITULO))
         itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
         itens.append(discord.ui.TextDisplay(REGRAS_BODY))
         itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
         if tem_sep:
-            itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://sep_anuncio.png")))
+            itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://mandamentos.png")))
             itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
         itens.append(discord.ui.TextDisplay(REGRAS_FOOTER))
 

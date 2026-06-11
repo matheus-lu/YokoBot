@@ -178,7 +178,10 @@ async def setup_signos_embed(bot):
     async for msg in canal.history(limit=20):
         if msg.author == bot.user:
             try:
-                await msg.delete()
+                raw_data = await bot.http.get_message(canal.id, msg.id)
+                if "signo_v2_" in str(raw_data):
+                    print("✅ Embed de signos já existe em V2, mantendo.")
+                    return
             except Exception:
                 pass
                 
