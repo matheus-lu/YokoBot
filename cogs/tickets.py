@@ -275,9 +275,28 @@ class FecharTicketButton(discord.ui.Button):
         except Exception:
             pass
 
-        await interaction.edit_original_response(
-            view=TicketFechadoLayout(texto="🔒 Ticket fechado. Canal movido para arquivos.")
-        )
+        import os as _os
+        _base = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+        _img_fechado = _os.path.join(_base, "ticket_fechado.png")
+        _sep_fechado = _os.path.join(_base, "sep_anuncio.png")
+        tem_fechado = _os.path.exists(_img_fechado) and _os.path.getsize(_img_fechado) < 9_000_000
+        tem_sep = _os.path.exists(_sep_fechado) and _os.path.getsize(_sep_fechado) < 9_000_000
+
+        view = TicketFechadoLayout(texto="🔒 Ticket fechado. Canal movido para arquivos.", tem_img=tem_fechado, tem_sep=tem_sep)
+        
+        arquivos = []
+        if tem_sep:
+            arquivos.append(discord.File(_sep_fechado, filename="sep_anuncio.png"))
+        if tem_fechado:
+            arquivos.append(discord.File(_img_fechado, filename="ticket_fechado.png"))
+
+        if arquivos:
+            await interaction.edit_original_response(
+                attachments=arquivos,
+                view=view
+            )
+        else:
+            await interaction.edit_original_response(view=view)
 
         if autor_id:
             try:
@@ -422,13 +441,16 @@ TicketView = TicketLayout
 
 # ── Layout do Ticket Aberto — V2 ────────────────────────────
 class TicketAbertoLayout(discord.ui.LayoutView):
-    def __init__(self, texto="**🐉 Ticket Aberto**", tem_img=False):
+    def __init__(self, texto="**🐉 Ticket Aberto**", tem_img=False, tem_sep=False):
         super().__init__(timeout=None)
 
         row1 = discord.ui.ActionRow(FecharTicketButton(), AssumirTicketButton(), AvisarTicketButton())
         row2 = discord.ui.ActionRow(AdicionarTicketButton(), RemoverTicketButton(), RenomearTicketButton())
 
         itens = []
+        if tem_sep:
+            itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://sep_anuncio.png")))
+            itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
         itens.append(discord.ui.TextDisplay(texto))
         itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
         if tem_img:
@@ -484,17 +506,23 @@ class DeletarTicketButton(discord.ui.Button):
 
 # ── Layout do Ticket Fechado — V2 ───────────────────────────
 class TicketFechadoLayout(discord.ui.LayoutView):
-    def __init__(self, texto="🔒 Ticket fechado."):
+    def __init__(self, texto="🔒 Ticket fechado.", tem_img=False, tem_sep=False):
         super().__init__(timeout=None)
 
         row1 = discord.ui.ActionRow(ReabrirTicketButton(), DeletarTicketButton())
 
-        self.add_item(discord.ui.Container(
-            discord.ui.TextDisplay(texto),
-            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
-            row1,
-            accent_color=discord.Color.red(),
-        ))
+        itens = []
+        if tem_sep:
+            itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://sep_anuncio.png")))
+            itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+        itens.append(discord.ui.TextDisplay(texto))
+        itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+        if tem_img:
+            itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://ticket_fechado.png")))
+            itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+        itens.append(row1)
+
+        self.add_item(discord.ui.Container(*itens, accent_color=discord.Color.red()))
 
 # Alias para compatibilidade
 TicketFechadoView = TicketFechadoLayout
