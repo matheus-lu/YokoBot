@@ -539,7 +539,7 @@ class AdicionarTicketButton(discord.ui.Button):
         if not is_staff(interaction):
             await interaction.response.send_message("Apenas a staff pode usar este botão!", ephemeral=True)
             return
-        await interaction.response.send_message("Selecione abaixo o membro que deseja adicionar:", view=AdicionarMembroView(), ephemeral=True)
+        await interaction.response.send_message(view=AdicionarMembroView(), ephemeral=True)
 
 
 class RemoverTicketButton(discord.ui.Button):
@@ -550,7 +550,7 @@ class RemoverTicketButton(discord.ui.Button):
         if not is_staff(interaction):
             await interaction.response.send_message("Apenas a staff pode usar este botão!", ephemeral=True)
             return
-        await interaction.response.send_message("Selecione abaixo o membro que deseja remover:", view=RemoverMembroView(), ephemeral=True)
+        await interaction.response.send_message(view=RemoverMembroView(), ephemeral=True)
 
 
 class RenomearTicketButton(discord.ui.Button):
@@ -793,10 +793,16 @@ class AdicionarMembroSelect(discord.ui.UserSelect):
         except Exception:
             await interaction.response.send_message("❌ Erro ao adicionar usuário.", ephemeral=True)
 
-class AdicionarMembroView(discord.ui.View):
+class AdicionarMembroView(discord.ui.LayoutView):
     def __init__(self):
         super().__init__(timeout=180)
-        self.add_item(AdicionarMembroSelect())
+        select = AdicionarMembroSelect()
+        itens = [
+            discord.ui.TextDisplay("➕ **Adicionar Membro**\nSelecione abaixo o membro que deseja adicionar ao ticket:"),
+            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
+            discord.ui.ActionRow(select)
+        ]
+        self.add_item(discord.ui.Container(*itens, accent_color=discord.Color.green()))
 
 
 class RemoverMembroSelect(discord.ui.UserSelect):
@@ -816,10 +822,16 @@ class RemoverMembroSelect(discord.ui.UserSelect):
         except Exception:
             await interaction.response.send_message("❌ Erro ao remover usuário.", ephemeral=True)
 
-class RemoverMembroView(discord.ui.View):
+class RemoverMembroView(discord.ui.LayoutView):
     def __init__(self):
         super().__init__(timeout=180)
-        self.add_item(RemoverMembroSelect())
+        select = RemoverMembroSelect()
+        itens = [
+            discord.ui.TextDisplay("➖ **Remover Membro**\nSelecione abaixo o membro que deseja remover do ticket:"),
+            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
+            discord.ui.ActionRow(select)
+        ]
+        self.add_item(discord.ui.Container(*itens, accent_color=discord.Color.red()))
 
 
 class RenomearTicketModal(Modal):
