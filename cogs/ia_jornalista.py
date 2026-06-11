@@ -84,7 +84,6 @@ class IABoasVindasLayout(discord.ui.LayoutView):
         super().__init__(timeout=None)
         
         texto = (
-            f"{mencoes}\n\n"
             "**🤖 │▸Oráculo do Dragão › RyuIA**\n\n"
             f"Olá, {member_name}!\n"
             "Sou a RyuIA, o espírito auxiliar do santuário.\n\n"
@@ -102,6 +101,7 @@ class IABoasVindasLayout(discord.ui.LayoutView):
             "O chat AI não cria tudo sozinha do nada.\n"
             "Ela trabalha melhor quando você traz a base, a ideia ou o objetivo.\n\n"
             "🌙 ⧽Chame pelo oráculo quando precisar dar forma às suas ideias. O dragão responde através da névoa.\n\n"
+            f"{mencoes}\n\n"
             "-# Ondrakos · RyuIA · Use com sabedoria"
         )
         
