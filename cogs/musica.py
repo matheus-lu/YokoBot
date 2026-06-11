@@ -253,7 +253,8 @@ async def resolver_url(entry):
                     "canal": entry.get("canal") or info.get("uploader", "Desconhecido"),
                     "titulo_embed": entry.get("titulo_embed"),
                     "needs_resolve": False,
-                    "falhas": entry.get("falhas", 0)
+                    "falhas": entry.get("falhas", 0),
+                    "http_headers": info.get("http_headers", {})
                 }
         except Exception as e:
             print("MUSICA ERRO resolver_url: " + type(e).__name__ + ": " + str(e))
@@ -982,7 +983,20 @@ async def tocar_proxima(guild, bot):
         filas.pop(guild.id, None)
         tocando_agora.pop(guild.id, None)
         return
-    source = discord.FFmpegPCMAudio(musica["url"], executable=config.FFMPEG_PATH, **FFMPEG_OPTIONS)
+        
+    ffmpeg_opts = dict(FFMPEG_OPTIONS)
+    headers = musica.get("http_headers", {})
+    if headers:
+        headers_str = ""
+        for k, v in headers.items():
+            if k.lower() == "user-agent":
+                ffmpeg_opts["before_options"] += f' -user_agent "{v}"'
+            else:
+                headers_str += f"{k}: {v}\r\n"
+        if headers_str:
+            ffmpeg_opts["before_options"] += f' -headers "{headers_str}"'
+            
+    source = discord.FFmpegPCMAudio(musica["url"], executable=config.FFMPEG_PATH, **ffmpeg_opts)
 
     start_time = time.time()
     def after(error):
