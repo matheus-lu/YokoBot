@@ -336,8 +336,8 @@ async def buscar_info(query):
                 "canal": e.get("uploader") or e.get("channel") or "Desconhecido",
                 "needs_resolve": True,
             })
-        return {"tipo": "playlist", "musicas": musicas}
-
+        nome_playlist = info.get("title", "Playlist")
+        return {"tipo": "playlist", "titulo": nome_playlist, "musicas": musicas}
 
 def formatar_duracao(segundos):
     if not segundos:
@@ -369,7 +369,8 @@ class PlayerLayoutTocando(discord.ui.LayoutView):
 
         duracao = formatar_duracao(musica["duracao"])
         canal_nome = musica["canal"]
-        info_text = "### 🎵 " + musica["titulo"] + "\n⏱️ **" + duracao + "**  ·  🎙️ " + canal_nome
+        titulo_exibicao = musica.get("titulo_embed") or musica["titulo"]
+        info_text = "### 🎵 " + titulo_exibicao + "\n⏱️ **" + duracao + "**  ·  🎙️ " + canal_nome
         if canal_voz:
             info_text += "  ·  🔊 **" + canal_voz + "**"
 
@@ -428,10 +429,15 @@ class PlayerLayoutTocando(discord.ui.LayoutView):
 
     async def _callback_pausar(self, interaction: discord.Interaction, button):
         vc = interaction.guild.voice_client
+        bot = interaction.client
         if vc and vc.is_playing():
             vc.pause()
+            if tocando_agora.get(interaction.guild.id):
+                await atualizar_status_canal_voz(interaction.guild, "⏸️ " + tocando_agora[interaction.guild.id]["titulo"], bot=bot)
         elif vc and vc.is_paused():
             vc.resume()
+            if tocando_agora.get(interaction.guild.id):
+                await atualizar_status_canal_voz(interaction.guild, tocando_agora[interaction.guild.id]["titulo"], bot=bot)
         else:
             await interaction.response.send_message("Nenhuma música tocando.", ephemeral=True)
             return
@@ -550,7 +556,10 @@ class PlayerLayoutTocando(discord.ui.LayoutView):
         fila = get_fila(guild.id)
         cancelar_timeout(guild.id)
         musicas = resultado["musicas"] if resultado["tipo"] == "playlist" else [resultado]
+        nome_playlist = resultado.get("titulo") if resultado["tipo"] == "playlist" else ""
         for m in musicas:
+            if nome_playlist:
+                m["titulo_embed"] = f"<:_playlist:1514529877770899546> {nome_playlist} - {m['titulo']}"
             fila.append(m)
         if not vc.is_playing() and not vc.is_paused():
             await tocar_proxima(guild, bot)
@@ -740,7 +749,10 @@ class PlayerLayoutSemMusica(discord.ui.LayoutView):
         fila = get_fila(guild.id)
         cancelar_timeout(guild.id)
         musicas = resultado["musicas"] if resultado["tipo"] == "playlist" else [resultado]
+        nome_playlist = resultado.get("titulo") if resultado["tipo"] == "playlist" else ""
         for m in musicas:
+            if nome_playlist:
+                m["titulo_embed"] = f"<:_playlist:1514529877770899546> {nome_playlist} - {m['titulo']}"
             fila.append(m)
         if not vc.is_playing() and not vc.is_paused():
             await tocar_proxima(guild, bot)
@@ -784,7 +796,10 @@ class AdicionarMusicaModal(Modal):
         cancelar_timeout(guild.id)
         if resultado["tipo"] == "playlist":
             musicas = resultado["musicas"]
+            nome_playlist = resultado.get("titulo", "")
             for m in musicas:
+                if nome_playlist:
+                    m["titulo_embed"] = f"<:_playlist:1514529877770899546> {nome_playlist} - {m['titulo']}"
                 fila.append(m)
             if not vc.is_playing() and not vc.is_paused():
                 await tocar_proxima(guild, bot)
@@ -967,10 +982,15 @@ class _PersistentMusicaHandler(discord.ui.View):
     @discord.ui.button(label="pausar", custom_id="musica_pausar", row=0)
     async def _pausar(self, interaction: discord.Interaction, button: Button):
         vc = interaction.guild.voice_client
+        bot = interaction.client
         if vc and vc.is_playing():
             vc.pause()
+            if tocando_agora.get(interaction.guild.id):
+                await atualizar_status_canal_voz(interaction.guild, "⏸️ " + tocando_agora[interaction.guild.id]["titulo"], bot=bot)
         elif vc and vc.is_paused():
             vc.resume()
+            if tocando_agora.get(interaction.guild.id):
+                await atualizar_status_canal_voz(interaction.guild, tocando_agora[interaction.guild.id]["titulo"], bot=bot)
         else:
             await interaction.response.send_message("Nenhuma música tocando.", ephemeral=True)
             return
@@ -1128,7 +1148,10 @@ class _PersistentMusicaHandler(discord.ui.View):
         fila = get_fila(guild.id)
         cancelar_timeout(guild.id)
         musicas = resultado["musicas"] if resultado["tipo"] == "playlist" else [resultado]
+        nome_playlist = resultado.get("titulo") if resultado["tipo"] == "playlist" else ""
         for m in musicas:
+            if nome_playlist:
+                m["titulo_embed"] = f"<:_playlist:1514529877770899546> {nome_playlist} - {m['titulo']}"
             fila.append(m)
         if not vc.is_playing() and not vc.is_paused():
             await tocar_proxima(guild, bot)
