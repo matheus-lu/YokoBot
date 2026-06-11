@@ -78,13 +78,84 @@ async def perguntar_ia(historico: list) -> str:
         return "Desculpe, nao consegui me conectar. Tente novamente em instantes."
 
 
-class IAFecharView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
 
-    @discord.ui.button(label="Encerrar sessão", style=discord.ButtonStyle.danger,
-                       emoji="🔒", custom_id="ia_fechar")
-    async def fechar(self, interaction: discord.Interaction, button: Button):
+class IABoasVindasLayout(discord.ui.LayoutView):
+    def __init__(self, member_name: str, mencoes: str, tem_img: bool = False):
+        super().__init__(timeout=None)
+        
+        texto = (
+            f"{mencoes}\n\n"
+            "**🤖 │▸Oráculo do Dragão › RyuIA**\n\n"
+            f"Olá, {member_name}!\n"
+            "Sou a RyuIA, o espírito auxiliar do santuário.\n\n"
+            "Estou aqui para te ajudar a transformar ideias soltas em algo mais bonito, organizado e pronto para usar dentro do servidor.\n\n"
+            "🐉 ⧽Posso te ajudar com:\n\n"
+            "📰 ⧽Criar textos, anúncios e avisos\n"
+            "✍️ ⧽Montar títulos, descrições e embeds\n"
+            "📜 ⧽Organizar lore, histórias e personagens\n"
+            "💡 ⧽Sugerir ideias para canais, cargos e sistemas\n"
+            "🎭 ⧽Ajudar com temas sobrenaturais, Japão, dragões e clãs\n"
+            "🛠️ ⧽Dar apoio em pedidos de serviços e projetos\n\n"
+            "⛩️ ⧽Como usar:\n"
+            "Basta me contar o que você quer criar.\n"
+            "Pode mandar sua ideia do seu jeito, mesmo que esteja bagunçada, e eu ajudo a organizar.\n\n"
+            "O chat AI não cria tudo sozinha do nada.\n"
+            "Ela trabalha melhor quando você traz a base, a ideia ou o objetivo.\n\n"
+            "🌙 ⧽Chame pelo oráculo quando precisar dar forma às suas ideias. O dragão responde através da névoa.\n\n"
+            "-# Ondrakos · RyuIA · Use com sabedoria"
+        )
+        
+        itens = []
+        if tem_img:
+            itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://chat_ia.png")))
+            itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+        
+        itens.extend([
+            discord.ui.TextDisplay(texto),
+            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
+            discord.ui.ActionRow(IAFecharButton())
+        ])
+        
+        self.add_item(discord.ui.Container(*itens, accent_color=DORORO_COLOR))
+
+class IAPainelLayout(discord.ui.LayoutView):
+    def __init__(self, tem_img: bool = False):
+        super().__init__(timeout=None)
+        
+        texto = (
+            "**🤖│▸Oráculo do Dragão › IA do Servidor**\n\n"
+            "O Oráculo do Dragão é uma IA criada para ajudar os membros a desenvolver ideias, organizar histórias e dar forma aos projetos do servidor.\n\n"
+            "Ela pode auxiliar com lore, personagens, narrativas, textos, ideias sobrenaturais, nomes, descrições e detalhes criativos ligados ao clima japonês, místico e fantástico do servidor.\n\n"
+            "Use a IA quando quiser transformar uma ideia solta em algo mais bonito, organizado e pronto para usar.\n\n"
+            "🐲↪**Papel da IA**\n\n"
+            "📜↪**Assistente de Lore** › histórias, mitologias, clãs, reinos, criaturas e regras mágicas\n\n"
+            "🎭↪**Criadora de Personagens** › personalidades, aparências, poderes, origens e relações\n\n"
+            "🌙↪**Narradora Sobrenatural** › cenas, eventos, missões, rituais e momentos dramáticos\n\n"
+            "🖊️↪**Apoio para Textos** › descrições, anúncios, embeds e conteúdos personalizados\n\n"
+            "A IA não substitui a criatividade dos membros. Ela serve como guia para organizar e dar vida às ideias.\n\n"
+            "✨↪Chame o Oráculo quando precisar de inspiração. O dragão responde aos que atravessam o portal.\n\n"
+            "-# Ondrakos · Oráculo do Dragão · Use com sabedoria"
+        )
+        
+        itens = []
+        if tem_img:
+            itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://IaImage.png")))
+            itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+            
+        itens.extend([
+            discord.ui.TextDisplay(texto),
+            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
+            discord.ui.ActionRow(IAPedirAjudaButton())
+        ])
+        
+        self.add_item(discord.ui.Container(*itens, accent_color=DORORO_COLOR))
+
+
+class IAFecharButton(discord.ui.Button):
+    def __init__(self):
+        super().__init__(label="Encerrar sessão", style=discord.ButtonStyle.danger, emoji="🔒", custom_id="ia_fechar")
+
+    async def callback(self, interaction: discord.Interaction):
         if not interaction.user.guild_permissions.administrator:
             await interaction.response.send_message("Apenas administradores podem encerrar.", ephemeral=True)
             return
@@ -94,13 +165,11 @@ class IAFecharView(discord.ui.View):
         await canal.delete()
 
 
-class IAPedirAjudaView(discord.ui.View):
+class IAPedirAjudaButton(discord.ui.Button):
     def __init__(self):
-        super().__init__(timeout=None)
+        super().__init__(label="Pedir ajuda à IA", style=discord.ButtonStyle.danger, emoji="🤖", custom_id="ia_pedir_ajuda")
 
-    @discord.ui.button(label="Pedir ajuda à IA", style=discord.ButtonStyle.danger,
-                       emoji="🤖", custom_id="ia_pedir_ajuda")
-    async def pedir_ajuda(self, interaction: discord.Interaction, button: Button):
+    async def callback(self, interaction: discord.Interaction):
         guild    = interaction.guild
         member   = interaction.user
         categoria = guild.get_channel(config.IA_CATEGORIA_ID())
@@ -142,36 +211,15 @@ class IAPedirAjudaView(discord.ui.View):
             mencoes_set.append(dev_role.mention)
         mencoes = " ".join(mencoes_set)
 
-        embed = discord.Embed(
-            title="🤖 │▸Oráculo do Dragão › RyuIA",
-            description=(
-                f"Olá, {member.display_name}!\n"
-                "Sou a RyuIA, o espírito auxiliar do santuário.\n\n"
-                "Estou aqui para te ajudar a transformar ideias soltas em algo mais bonito, organizado e pronto para usar dentro do servidor.\n\n"
-                "🐉 ⧽Posso te ajudar com:\n\n"
-                "📰 ⧽Criar textos, anúncios e avisos\n"
-                "✍️ ⧽Montar títulos, descrições e embeds\n"
-                "📜 ⧽Organizar lore, histórias e personagens\n"
-                "💡 ⧽Sugerir ideias para canais, cargos e sistemas\n"
-                "🎭 ⧽Ajudar com temas sobrenaturais, Japão, dragões e clãs\n"
-                "🛠️ ⧽Dar apoio em pedidos de serviços e projetos\n\n"
-                "⛩️ ⧽Como usar:\n"
-                "Basta me contar o que você quer criar.\n"
-                "Pode mandar sua ideia do seu jeito, mesmo que esteja bagunçada, e eu ajudo a organizar.\n\n"
-                "O chat AI não cria tudo sozinha do nada.\n"
-                "Ela trabalha melhor quando você traz a base, a ideia ou o objetivo.\n\n"
-                "🌙 ⧽Chame pelo oráculo quando precisar dar forma às suas ideias. O dragão responde através da névoa."
-            ),
-            color=DORORO_COLOR,
-        )
-        embed.set_footer(text="Ondrakos · RyuIA · Use com sabedoria")
         import os as _os
         chat_img = _os.path.normpath(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)), '..', 'chat_ia.png'))
-        if _os.path.exists(chat_img) and _os.path.getsize(chat_img) < 9_000_000:
-            embed.set_image(url="attachment://chat_ia.png")
-            await canal.send(content=mencoes, embed=embed, view=IAFecharView(), file=discord.File(chat_img, filename="chat_ia.png"))
+        tem_img = _os.path.exists(chat_img) and _os.path.getsize(chat_img) < 9_000_000
+        view = IABoasVindasLayout(member_name=member.display_name, mencoes=mencoes, tem_img=tem_img)
+        
+        if tem_img:
+            await canal.send(view=view, file=discord.File(chat_img, filename="chat_ia.png"))
         else:
-            await canal.send(content=mencoes, embed=embed, view=IAFecharView())
+            await canal.send(view=view)
 
         # Inicializar histórico com o contexto
         contexto = carregar_contexto()
@@ -186,30 +234,15 @@ class IAPedirAjudaView(discord.ui.View):
 
 
 async def _criar_embed_ia(canal):
-    embed = discord.Embed(
-        title="🤖│▸Oráculo do Dragão › IA do Servidor",
-        description=(
-            "O Oráculo do Dragão é uma IA criada para ajudar os membros a desenvolver ideias, organizar histórias e dar forma aos projetos do servidor.\n\n"
-            "Ela pode auxiliar com lore, personagens, narrativas, textos, ideias sobrenaturais, nomes, descrições e detalhes criativos ligados ao clima japonês, místico e fantástico do servidor.\n\n"
-            "Use a IA quando quiser transformar uma ideia solta em algo mais bonito, organizado e pronto para usar.\n\n"
-            "🐲↪**Papel da IA**\n\n"
-            "📜↪**Assistente de Lore** › histórias, mitologias, clãs, reinos, criaturas e regras mágicas\n\n"
-            "🎭↪**Criadora de Personagens** › personalidades, aparências, poderes, origens e relações\n\n"
-            "🌙↪**Narradora Sobrenatural** › cenas, eventos, missões, rituais e momentos dramáticos\n\n"
-            "🖊️↪**Apoio para Textos** › descrições, anúncios, embeds e conteúdos personalizados\n\n"
-            "A IA não substitui a criatividade dos membros. Ela serve como guia para organizar e dar vida às ideias.\n\n"
-            "✨↪Chame o Oráculo quando precisar de inspiração. O dragão responde aos que atravessam o portal."
-        ),
-        color=DORORO_COLOR,
-    )
-    embed.set_image(url="attachment://IaImage.png")
-    embed.set_footer(text="Ondrakos · Oráculo do Dragão · Use com sabedoria")
     import os
     img_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'IaImage.png')
-    if os.path.exists(img_path):
-        await canal.send(embed=embed, view=IAPedirAjudaView(), file=discord.File(img_path, filename="IaImage.png"))
+    tem_img = os.path.exists(img_path) and os.path.getsize(img_path) < 9_000_000
+    
+    view = IAPainelLayout(tem_img=tem_img)
+    if tem_img:
+        await canal.send(view=view, file=discord.File(img_path, filename="IaImage.png"))
     else:
-        await canal.send(embed=embed, view=IAPedirAjudaView())
+        await canal.send(view=view)
 
 
 class IAJornalistaCog(commands.Cog):
@@ -278,5 +311,5 @@ class IAJornalistaCog(commands.Cog):
 
 async def setup(bot):
     await bot.add_cog(IAJornalistaCog(bot))
-    bot.add_view(IAPedirAjudaView())
-    bot.add_view(IAFecharView())
+    bot.add_view(IAPainelLayout())
+    bot.add_view(IABoasVindasLayout(member_name="Usuário", mencoes=""))
