@@ -783,8 +783,13 @@ class AdicionarMembroModal(Modal):
         try:
             member = await interaction.guild.fetch_member(int(self.user_id.value))
             await interaction.channel.set_permissions(member, view_channel=True, send_messages=True, read_message_history=True)
+            
+            texto_add = f"✅ {member.mention} **foi adicionado(a) a este ticket!**"
+            layout_add = discord.ui.LayoutView()
+            layout_add.add_item(discord.ui.Container(discord.ui.TextDisplay(texto_add), accent_color=discord.Color.green()))
+            
             await interaction.response.send_message(
-                content=member.mention + " você foi adicionado(a) a este ticket!",
+                view=layout_add,
                 allowed_mentions=discord.AllowedMentions(users=True),
             )
         except Exception:
@@ -801,7 +806,12 @@ class RemoverMembroModal(Modal):
         try:
             member = await interaction.guild.fetch_member(int(self.user_id.value))
             await interaction.channel.set_permissions(member, overwrite=None)
-            await interaction.response.send_message("✅ " + member.mention + " removido do ticket!", ephemeral=True)
+            
+            texto_rem = f"✅ {member.mention} **removido(a) do ticket!**"
+            layout_rem = discord.ui.LayoutView()
+            layout_rem.add_item(discord.ui.Container(discord.ui.TextDisplay(texto_rem), accent_color=discord.Color.red()))
+            
+            await interaction.response.send_message(view=layout_rem, ephemeral=True)
         except Exception:
             await interaction.response.send_message("❌ Usuário não encontrado.", ephemeral=True)
 
