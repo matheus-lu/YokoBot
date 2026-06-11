@@ -185,6 +185,7 @@ class TicketModal(Modal):
         staff_mention = "<@&" + str(config.STAFF_MENTION_ROLE_ID()) + ">"
 
         texto_ticket = (
+            f"{member.mention} | {staff_mention}\n\n"
             f"**🐉 • {canal.name}**\n\n"
             "A equipe já está ciente da abertura do seu ticket, basta aguardar que "
             "em breve será atendido.\n\n"
@@ -198,16 +199,18 @@ class TicketModal(Modal):
         import os as _os
         _base = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
         _img_path = _os.path.join(_base, "ticket_aberto.png")
+        _sep_path = _os.path.join(_base, "sep_anuncio.png")
         tem_img = _os.path.exists(_img_path) and _os.path.getsize(_img_path) < 9_000_000
+        tem_sep = _os.path.exists(_sep_path) and _os.path.getsize(_sep_path) < 9_000_000
 
-        view = TicketAbertoLayout(texto=texto_ticket, tem_img=tem_img)
+        view = TicketAbertoLayout(texto=texto_ticket, tem_img=tem_img, tem_sep=tem_sep)
         arquivos = []
+        if tem_sep:
+            arquivos.append(discord.File(_sep_path, filename="sep_anuncio.png"))
         if tem_img:
             arquivos.append(discord.File(_img_path, filename="ticket_aberto.png"))
 
         await canal.send(
-            content=member.mention + " | " + staff_mention,
-            allowed_mentions=discord.AllowedMentions(roles=True, users=True),
             files=arquivos if arquivos else discord.utils.MISSING,
             view=view
         )
