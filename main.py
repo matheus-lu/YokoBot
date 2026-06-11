@@ -495,28 +495,25 @@ class AnuncioPresencaView(View):
         confirmados = list(dados["confirmados"].values())
         ausentes = list(dados["ausentes"].values())
 
-        embed = discord.Embed(title="📋 Lista de Presença", color=DORORO_COLOR)
-
         if confirmados:
             lista_conf = "\n".join(["✅ " + n for n in confirmados])
         else:
             lista_conf = "Ninguém confirmou ainda"
-        embed.add_field(
-            name="Confirmados (" + str(len(confirmados)) + ")",
-            value=lista_conf, inline=True
-        )
-
+        
         if ausentes:
             lista_aus = "\n".join(["❌ " + n for n in ausentes])
         else:
             lista_aus = "Ninguém informou ausência"
-        embed.add_field(
-            name="Ausentes (" + str(len(ausentes)) + ")",
-            value=lista_aus, inline=True
-        )
 
-        embed.set_footer(text="© Ondrakos · 水の竜")
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        texto = (
+            "📋 **Lista de Presença**\n\n"
+            f"**Confirmados ({len(confirmados)})**\n{lista_conf}\n\n"
+            f"**Ausentes ({len(ausentes)})**\n{lista_aus}\n\n"
+            "-# © Ondrakos · 水の竜"
+        )
+        view = discord.ui.LayoutView()
+        view.add_item(discord.ui.Container(discord.ui.TextDisplay(texto), accent_color=DORORO_COLOR))
+        await interaction.response.send_message(view=view, ephemeral=True)
 
     @discord.ui.button(label="Avisar Confirmados", style=discord.ButtonStyle.secondary, emoji="🔔", row=1, custom_id="anuncio_avisar")
     async def avisar(self, interaction: discord.Interaction, button: Button):
@@ -604,18 +601,17 @@ class AnuncioModal(Modal):
             "guild_id": interaction.guild.id,
         }
 
-        embed = discord.Embed(
-            title="📎 Envie os arquivos do anúncio",
-            description=(
-                "Envie **uma ou mais imagens/arquivos** que vão aparecer no anúncio.\n"
-                "Você pode anexar até **10 arquivos** de uma vez (qualquer tipo).\n\n"
-                "Ou digite **pular** para enviar sem arquivos.\n"
-                "Digite **cancelar** para cancelar o anúncio."
-            ),
-            color=DORORO_COLOR,
+        texto = (
+            "📎 **Envie os arquivos do anúncio**\n\n"
+            "Envie **uma ou mais imagens/arquivos** que vão aparecer no anúncio.\n"
+            "Você pode anexar até **10 arquivos** de uma vez (qualquer tipo).\n\n"
+            "Ou digite **pular** para enviar sem arquivos.\n"
+            "Digite **cancelar** para cancelar o anúncio.\n\n"
+            "-# ⏳ Você tem 2 minutos para enviar."
         )
-        embed.set_footer(text="⏳ Você tem 2 minutos para enviar.")
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        view = discord.ui.LayoutView()
+        view.add_item(discord.ui.Container(discord.ui.TextDisplay(texto), accent_color=DORORO_COLOR))
+        await interaction.response.send_message(view=view, ephemeral=True)
 
         def check(m):
             return (
@@ -645,13 +641,9 @@ class AnuncioModal(Modal):
                 await msg.reply("❌ Canal não encontrado!", delete_after=5)
                 return
 
-            # Montar embed
-            embed_anuncio = discord.Embed(
-                title=dados["titulo"],
-                description=dados["mensagem"],
-                color=DORORO_COLOR,
-            )
-            embed_anuncio.set_footer(text="© Ondrakos · 水の竜")
+            # Montar layout V2
+            texto_anuncio = f"**{dados['titulo']}**\n\n{dados['mensagem']}\n\n-# © Ondrakos · 水の竜"
+            itens_anuncio = [discord.ui.TextDisplay(texto_anuncio)]
 
             # Montar menções
             texto_mencao, content_ping = montar_texto_mencao(dados["mencoes"], guild, dados.get("frase_convocacao", ""))
@@ -833,13 +825,9 @@ postagem_pendente = {}
 
 
 class PostagemModal(Modal):
-    def __init__(self):
+    def __init__(self, forum_id: int):
         super().__init__(title="🐉 Nova Postagem — Ondrakos")
-        self.canal_forum = TextInput(
-            label="ID do canal de fórum",
-            placeholder="Clique com botão direito no canal → Copiar ID",
-            required=True, max_length=20,
-        )
+        self.forum_id = forum_id
         self.titulo = TextInput(
             label="Título da postagem (nome do tópico)",
             placeholder="Ex: 🐉 Ritual do Clã · Evento Sobrenatural",
@@ -861,7 +849,7 @@ class PostagemModal(Modal):
             placeholder="@Nome, ID ou @Cargo",
             required=False, max_length=500,
         )
-        self.add_item(self.canal_forum)
+        
         self.add_item(self.titulo)
         self.add_item(self.mensagem)
         self.add_item(self.tags)
@@ -870,7 +858,7 @@ class PostagemModal(Modal):
     async def on_submit(self, interaction: discord.Interaction):
         # Validar ID do fórum
         try:
-            forum_id = int(self.canal_forum.value.strip())
+            forum_id = self.forum_id
         except ValueError:
             await interaction.response.send_message("❌ ID do canal inválido.", ephemeral=True)
             return
@@ -899,18 +887,17 @@ class PostagemModal(Modal):
             "guild_id": interaction.guild.id,
         }
 
-        embed = discord.Embed(
-            title="📎 Envie os arquivos da postagem",
-            description=(
-                "Envie **uma ou mais imagens/arquivos** que vão aparecer na postagem.\n"
-                "Você pode anexar até **10 arquivos** de uma vez (qualquer tipo).\n\n"
-                "Ou digite **pular** para postar sem arquivos.\n"
-                "Digite **cancelar** para cancelar."
-            ),
-            color=DORORO_COLOR,
+        texto = (
+            "📎 **Envie os arquivos da postagem**\n\n"
+            "Envie **uma ou mais imagens/arquivos** que vão aparecer na postagem.\n"
+            "Você pode anexar até **10 arquivos** de uma vez (qualquer tipo).\n\n"
+            "Ou digite **pular** para postar sem arquivos.\n"
+            "Digite **cancelar** para cancelar.\n\n"
+            "-# ⏳ Você tem 2 minutos para enviar."
         )
-        embed.set_footer(text="⏳ Você tem 2 minutos para enviar.")
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        view = discord.ui.LayoutView()
+        view.add_item(discord.ui.Container(discord.ui.TextDisplay(texto), accent_color=DORORO_COLOR))
+        await interaction.response.send_message(view=view, ephemeral=True)
 
         def check(m):
             return (
@@ -1047,10 +1034,56 @@ class PostagemModal(Modal):
                 pass
 
 
+class PostagemDestinoView(discord.ui.LayoutView):
+    def __init__(self, interaction: discord.Interaction):
+        super().__init__(timeout=120)
+        categorias = [c for c in interaction.guild.categories if any(isinstance(ch, discord.ForumChannel) for ch in c.channels)]
+        categorias = categorias[:25]
+        
+        if not categorias:
+            self.add_item(discord.ui.TextDisplay("Nenhuma categoria com fórum encontrada."))
+            return
+            
+        opcoes = [discord.SelectOption(label=c.name, value=str(c.id)) for c in categorias]
+        self.select_cat = discord.ui.Select(placeholder="1. Selecione a Categoria", options=opcoes)
+        self.select_cat.callback = self.categoria_selecionada
+        
+        self.add_item(discord.ui.Container(
+            discord.ui.TextDisplay("🐉 **Nova Postagem › Selecione o Fórum**\nNavegue pelas categorias para encontrar o fórum."),
+            self.select_cat,
+            accent_color=DORORO_COLOR
+        ))
+
+    async def categoria_selecionada(self, interaction: discord.Interaction):
+        cat_id = int(self.select_cat.values[0])
+        categoria = interaction.guild.get_channel(cat_id)
+        
+        foruns = [c for c in categoria.channels if isinstance(c, discord.ForumChannel)][:25]
+        if not foruns:
+            await interaction.response.send_message("❌ Nenhum fórum ativo nesta categoria.", ephemeral=True)
+            return
+            
+        opcoes_foruns = [discord.SelectOption(label=f.name, value=str(f.id)) for f in foruns]
+        self.select_forum = discord.ui.Select(placeholder="2. Selecione o Fórum", options=opcoes_foruns)
+        self.select_forum.callback = self.forum_selecionado
+        
+        self.clear_items()
+        self.add_item(discord.ui.Container(
+            discord.ui.TextDisplay("🐉 **Nova Postagem › Selecione o Fórum**\nCategoria selecionada. Agora escolha o fórum."),
+            self.select_cat,
+            self.select_forum,
+            accent_color=DORORO_COLOR
+        ))
+        await interaction.response.edit_message(view=self)
+
+    async def forum_selecionado(self, interaction: discord.Interaction):
+        forum_id = int(self.select_forum.values[0])
+        await interaction.response.send_modal(PostagemModal(forum_id=forum_id))
+
 @bot.tree.command(name="postagem", description="Criar uma postagem num canal de fórum — Ondrakos")
 @app_commands.checks.has_permissions(administrator=True)
 async def postagem_cmd(interaction: discord.Interaction):
-    await interaction.response.send_modal(PostagemModal())
+    await interaction.response.send_message(view=PostagemDestinoView(interaction), ephemeral=True)
 
 
 def _sep_file():
@@ -1075,10 +1108,88 @@ async def _ultimo_eh_sep(canal) -> bool:
         pass
     return False
 
+class AnuncioDestinoView(discord.ui.LayoutView):
+    def __init__(self, interaction: discord.Interaction):
+        super().__init__(timeout=120)
+        categorias = [c for c in interaction.guild.categories if len(c.channels) > 0]
+        categorias = categorias[:25]
+        
+        if not categorias:
+            self.add_item(discord.ui.TextDisplay("Nenhuma categoria encontrada."))
+            return
+            
+        opcoes = [discord.SelectOption(label=c.name, value=str(c.id)) for c in categorias]
+        self.select_cat = discord.ui.Select(placeholder="1. Selecione a Categoria", options=opcoes)
+        self.select_cat.callback = self.categoria_selecionada
+        
+        self.add_item(discord.ui.Container(
+            discord.ui.TextDisplay("🐉 **Novo Anúncio › Selecione o Destino**\nNavegue pelas categorias para encontrar o canal."),
+            self.select_cat,
+            accent_color=DORORO_COLOR
+        ))
+
+    async def categoria_selecionada(self, interaction: discord.Interaction):
+        cat_id = int(self.select_cat.values[0])
+        categoria = interaction.guild.get_channel(cat_id)
+        
+        # Filtra canais de texto ou fórum
+        canais = [c for c in categoria.channels if isinstance(c, (discord.TextChannel, discord.ForumChannel, discord.NewsChannel))][:25]
+        if not canais:
+            await interaction.response.send_message("❌ Nenhum canal de texto ou fórum ativo nesta categoria.", ephemeral=True)
+            return
+            
+        opcoes_canais = [discord.SelectOption(
+            label=c.name, 
+            value=str(c.id), 
+            description="Fórum" if isinstance(c, discord.ForumChannel) else "Canal de Texto"
+        ) for c in canais]
+        
+        self.select_canal = discord.ui.Select(placeholder="2. Selecione o Canal", options=opcoes_canais)
+        self.select_canal.callback = self.canal_selecionado
+        
+        self.clear_items()
+        self.add_item(discord.ui.Container(
+            discord.ui.TextDisplay("🐉 **Novo Anúncio › Selecione o Destino**\nCategoria selecionada. Agora escolha o canal."),
+            self.select_cat,
+            self.select_canal,
+            accent_color=DORORO_COLOR
+        ))
+        await interaction.response.edit_message(view=self)
+
+    async def canal_selecionado(self, interaction: discord.Interaction):
+        canal_id = int(self.select_canal.values[0])
+        canal = interaction.guild.get_channel(canal_id)
+        
+        if isinstance(canal, discord.ForumChannel):
+            topicos = canal.threads[:25]
+            if not topicos:
+                await interaction.response.send_message("❌ Nenhum tópico ativo neste fórum.", ephemeral=True)
+                return
+                
+            opcoes_topicos = [discord.SelectOption(label=t.name[:100], value=str(t.id)) for t in topicos]
+            self.select_topico = discord.ui.Select(placeholder="3. Selecione o Tópico", options=opcoes_topicos)
+            self.select_topico.callback = self.topico_selecionado
+            
+            self.clear_items()
+            self.add_item(discord.ui.Container(
+                discord.ui.TextDisplay("🐉 **Novo Anúncio › Selecione o Destino**\nFórum selecionado. Agora escolha o tópico."),
+                self.select_cat,
+                self.select_canal,
+                self.select_topico,
+                accent_color=DORORO_COLOR
+            ))
+            await interaction.response.edit_message(view=self)
+        else:
+            await interaction.response.send_modal(AnuncioModal(canal_id=canal_id))
+
+    async def topico_selecionado(self, interaction: discord.Interaction):
+        topico_id = int(self.select_topico.values[0])
+        await interaction.response.send_modal(AnuncioModal(canal_id=topico_id))
+
 @bot.tree.command(name="anuncio", description="Criar um anúncio do Ondrakos")
 @app_commands.checks.has_permissions(administrator=True)
 async def anuncio_cmd(interaction: discord.Interaction):
-    await interaction.response.send_modal(AnuncioModal(canal_id=interaction.channel.id))
+    await interaction.response.send_message(view=AnuncioDestinoView(interaction), ephemeral=True)
 
 
 # ── on_ready ───────────────────────────────────────────────
@@ -1272,18 +1383,17 @@ class EditarMensagemModal(Modal):
             "footer": self.footer_field.value,
         }
 
-        embed = discord.Embed(
-            title="Imagem da mensagem",
-            description=(
-                "Envie uma **nova imagem** para substituir.\n"
-                "Digite **pular** para manter a imagem atual.\n"
-                "Digite **remover** para tirar a imagem.\n"
-                "Digite **cancelar** para cancelar."
-            ),
-            color=DORORO_COLOR,
+        texto = (
+            "🖼️ **Imagem da mensagem**\n\n"
+            "Envie uma **nova imagem** para substituir.\n"
+            "Digite **pular** para manter a imagem atual.\n"
+            "Digite **remover** para tirar a imagem.\n"
+            "Digite **cancelar** para cancelar.\n\n"
+            "-# ⏳ Você tem 2 minutos para responder."
         )
-        embed.set_footer(text="Voce tem 2 minutos para responder.")
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        view = discord.ui.LayoutView()
+        view.add_item(discord.ui.Container(discord.ui.TextDisplay(texto), accent_color=DORORO_COLOR))
+        await interaction.response.send_message(view=view, ephemeral=True)
 
         def check(m):
             return m.author.id == interaction.user.id and m.channel.id == interaction.channel.id
@@ -1498,18 +1608,17 @@ class RemandarMensagemModal(Modal):
             "footer":   self.footer_field.value,
         }
 
-        embed = discord.Embed(
-            title="Imagem da mensagem",
-            description=(
-                "Envie uma **nova imagem** para substituir.\n"
-                "Digite **pular** para manter a imagem atual.\n"
-                "Digite **remover** para tirar a imagem.\n"
-                "Digite **cancelar** para cancelar."
-            ),
-            color=DORORO_COLOR,
+        texto = (
+            "🖼️ **Imagem da mensagem**\n\n"
+            "Envie uma **nova imagem** para substituir.\n"
+            "Digite **pular** para manter a imagem atual.\n"
+            "Digite **remover** para tirar a imagem.\n"
+            "Digite **cancelar** para cancelar.\n\n"
+            "-# ⏳ Você tem 2 minutos para responder."
         )
-        embed.set_footer(text="Voce tem 2 minutos para responder.")
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        view = discord.ui.LayoutView()
+        view.add_item(discord.ui.Container(discord.ui.TextDisplay(texto), accent_color=DORORO_COLOR))
+        await interaction.response.send_message(view=view, ephemeral=True)
 
         def check(m):
             return m.author.id == interaction.user.id and m.channel.id == interaction.channel.id
