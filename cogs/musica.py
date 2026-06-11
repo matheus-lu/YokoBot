@@ -221,34 +221,50 @@ def _iniciar_status_dono(channel_id, bot, frase):
 async def resolver_url(entry):
     loop = asyncio.get_event_loop()
     target = entry.get("pagina") or entry.get("webpage_url") or entry.get("url", "")
-    if not target and entry.get("titulo"):
+    
+    if entry.get("needs_fallback") and entry.get("titulo"):
+        target = "ytsearch1:" + entry["titulo"] + (" " + entry["canal"] if entry.get("canal") and entry["canal"] != "Desconhecido" else "")
+    elif not target and entry.get("titulo"):
         target = "ytsearch:" + entry["titulo"]
+
     if not target:
         return None
-    try:
-        ydl = get_ydl()
-        info = await loop.run_in_executor(None, lambda: ydl.extract_info(target, download=False))
-        if info and "url" in info:
-            novo_titulo = info.get("title")
-            if novo_titulo == "videoplayback" or not novo_titulo:
-                novo_titulo = entry.get("titulo") or entry.get("title", "Desconhecido")
-            else:
-                novo_titulo = entry.get("titulo") or novo_titulo
-                
-            return {
-                "url": info["url"],
-                "titulo": novo_titulo,
-                "duracao": entry.get("duracao") or info.get("duration", 0),
-                "thumbnail": entry.get("thumbnail") or info.get("thumbnail", None),
-                "pagina": entry.get("pagina") or info.get("webpage_url") or target,
-                "canal": entry.get("canal") or info.get("uploader", "Desconhecido"),
-                "titulo_embed": entry.get("titulo_embed"),
-                "needs_resolve": False,
-            }
-    except Exception as e:
-        print("MUSICA ERRO resolver_url: " + type(e).__name__ + ": " + str(e))
-        global _ydl_instance
-        _ydl_instance = None
+
+    for tentativa in range(2):
+        try:
+            ydl = get_ydl()
+            info = await loop.run_in_executor(None, lambda: ydl.extract_info(target, download=False))
+            if info and "entries" in info and info["entries"]:
+                info = info["entries"][0]
+            
+            if info and "url" in info:
+                novo_titulo = info.get("title")
+                if novo_titulo == "videoplayback" or not novo_titulo:
+                    novo_titulo = entry.get("titulo") or entry.get("title", "Desconhecido")
+                else:
+                    novo_titulo = entry.get("titulo") or novo_titulo
+                    
+                return {
+                    "url": info["url"],
+                    "titulo": novo_titulo,
+                    "duracao": entry.get("duracao") or info.get("duration", 0),
+                    "thumbnail": entry.get("thumbnail") or info.get("thumbnail", None),
+                    "pagina": info.get("webpage_url") or entry.get("pagina") or target,
+                    "canal": entry.get("canal") or info.get("uploader", "Desconhecido"),
+                    "titulo_embed": entry.get("titulo_embed"),
+                    "needs_resolve": False,
+                    "falhas": entry.get("falhas", 0)
+                }
+        except Exception as e:
+            print("MUSICA ERRO resolver_url: " + type(e).__name__ + ": " + str(e))
+            global _ydl_instance
+            _ydl_instance = None
+            
+        if tentativa == 0 and entry.get("titulo"):
+            target = "ytsearch1:" + entry["titulo"] + (" " + entry["canal"] if entry.get("canal") and entry["canal"] != "Desconhecido" else "")
+        else:
+            break
+
     return None
 
 
@@ -456,6 +472,8 @@ class PlayerLayoutTocando(discord.ui.LayoutView):
     async def _callback_pular(self, interaction: discord.Interaction, button):
         vc = interaction.guild.voice_client
         if vc and (vc.is_playing() or vc.is_paused()):
+            if tocando_agora.get(interaction.guild.id):
+                tocando_agora[interaction.guild.id]["skip_fallback"] = True
             vc.stop()
             await interaction.response.send_message("Pulando...", ephemeral=True)
         else:
@@ -465,6 +483,8 @@ class PlayerLayoutTocando(discord.ui.LayoutView):
         vc = interaction.guild.voice_client
         if vc:
             await interaction.response.defer(ephemeral=True)
+            if tocando_agora.get(interaction.guild.id):
+                tocando_agora[interaction.guild.id]["skip_fallback"] = True
             filas.pop(interaction.guild.id, None)
             tocando_agora.pop(interaction.guild.id, None)
             bot = interaction.client
@@ -710,6 +730,8 @@ class PlayerLayoutSemMusica(discord.ui.LayoutView):
         await interaction.response.defer(ephemeral=True)
         vc = interaction.guild.voice_client
         if vc:
+            if tocando_agora.get(interaction.guild.id):
+                tocando_agora[interaction.guild.id]["skip_fallback"] = True
             filas.pop(interaction.guild.id, None)
             tocando_agora.pop(interaction.guild.id, None)
             interaction.client.dj_parado_por[interaction.guild.id] = interaction.user
@@ -962,7 +984,15 @@ async def tocar_proxima(guild, bot):
         return
     source = discord.FFmpegPCMAudio(musica["url"], executable=config.FFMPEG_PATH, **FFMPEG_OPTIONS)
 
+    start_time = time.time()
     def after(error):
+        duracao = time.time() - start_time
+        if duracao < 3 and not musica.get("skip_fallback") and musica.get("falhas", 0) < 1:
+            print(f"MUSICA FAIL {musica['titulo']} falhou em {duracao:.2f}s. Tentando fallback...")
+            musica["falhas"] = musica.get("falhas", 0) + 1
+            musica["needs_resolve"] = True
+            musica["needs_fallback"] = True
+            get_fila(guild.id).insert(0, musica)
         asyncio.run_coroutine_threadsafe(tocar_proxima(guild, bot), bot.loop)
 
     guild.voice_client.play(source, after=after)
@@ -1016,6 +1046,8 @@ class _PersistentMusicaHandler(discord.ui.View):
     async def _pular(self, interaction: discord.Interaction, button: Button):
         vc = interaction.guild.voice_client
         if vc and (vc.is_playing() or vc.is_paused()):
+            if tocando_agora.get(interaction.guild.id):
+                tocando_agora[interaction.guild.id]["skip_fallback"] = True
             vc.stop()
             await interaction.response.send_message("Pulando...", ephemeral=True)
         else:
@@ -1026,6 +1058,8 @@ class _PersistentMusicaHandler(discord.ui.View):
         vc = interaction.guild.voice_client
         if vc:
             await interaction.response.defer(ephemeral=True)
+            if tocando_agora.get(interaction.guild.id):
+                tocando_agora[interaction.guild.id]["skip_fallback"] = True
             filas.pop(interaction.guild.id, None)
             tocando_agora.pop(interaction.guild.id, None)
             bot = interaction.client
