@@ -71,15 +71,6 @@ Então clique no botão do Dragão para ganhar o cargo.
 
 SIGNOS_IMAGE_PATH = "signos.png"
 
-def _build_embed():
-    embed = discord.Embed(
-        title="🐉 Escolha seu Signo Japonês 🍀│▸juunishi",
-        description=EMBED_DESC,
-        color=discord.Color.from_rgb(31, 139, 76),
-    )
-    embed.set_footer(text="十二支 — Juunishi 星座")
-    return embed
-
 
 class SignoButton(discord.ui.Button):
     def __init__(self, signo_info, row):
@@ -114,20 +105,54 @@ class SignoButton(discord.ui.Button):
             await interaction.followup.send(f"❌ O cargo do signo **{self.signo_info['emoji_str']} {self.signo_info['label']}** foi removido de você.", ephemeral=True)
 
 
-class SignosView(discord.ui.View):
+class SignosLayout(discord.ui.LayoutView):
     def __init__(self):
         super().__init__(timeout=None)
-        # Distribui os 12 botões em 3 linhas (4 botões por linha)
-        for idx, s in enumerate(SIGNOS):
-            row = idx // 4
-            self.add_item(SignoButton(s, row))
+        
+        row1 = discord.ui.ActionRow(*[SignoButton(s, 0) for s in SIGNOS[0:4]])
+        row2 = discord.ui.ActionRow(*[SignoButton(s, 1) for s in SIGNOS[4:8]])
+        row3 = discord.ui.ActionRow(*[SignoButton(s, 2) for s in SIGNOS[8:12]])
 
+        self.add_item(discord.ui.Container(
+            discord.ui.TextDisplay("**🐉 │▸Escolha seu Signo Japonês 🍀**"),
+            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
+            discord.ui.TextDisplay(EMBED_DESC),
+            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
+            discord.ui.MediaGallery(
+                discord.MediaGalleryItem("attachment://signos.png"),
+            ),
+            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
+            discord.ui.TextDisplay("-# 十二支 — Juunishi 星座"),
+            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
+            row1, row2, row3,
+            accent_color=discord.Color.from_rgb(31, 139, 76),
+        ))
+
+class SignosLayoutSemImagem(discord.ui.LayoutView):
+    def __init__(self):
+        super().__init__(timeout=None)
+        
+        row1 = discord.ui.ActionRow(*[SignoButton(s, 0) for s in SIGNOS[0:4]])
+        row2 = discord.ui.ActionRow(*[SignoButton(s, 1) for s in SIGNOS[4:8]])
+        row3 = discord.ui.ActionRow(*[SignoButton(s, 2) for s in SIGNOS[8:12]])
+
+        self.add_item(discord.ui.Container(
+            discord.ui.TextDisplay("**🐉 │▸Escolha seu Signo Japonês 🍀**"),
+            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
+            discord.ui.TextDisplay(EMBED_DESC),
+            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
+            discord.ui.TextDisplay("-# 十二支 — Juunishi 星座"),
+            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
+            row1, row2, row3,
+            accent_color=discord.Color.from_rgb(31, 139, 76),
+        ))
 
 class SignosCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         # Registrar a view persistentemente quando a cog carregar
-        self.bot.add_view(SignosView())
+        self.bot.add_view(SignosLayout())
+        self.bot.add_view(SignosLayoutSemImagem())
 
 
 async def setup_signos_embed(bot):
@@ -138,34 +163,42 @@ async def setup_signos_embed(bot):
         
     msg_existente = None
     async for msg in canal.history(limit=20):
-        if msg.author == bot.user and msg.embeds:
-            if "juunishi" in msg.embeds[0].title.lower() or "signo" in msg.embeds[0].title.lower():
+        if msg.author == bot.user:
+            # V2 (LayoutView) tem componentes com ID "signo_v2_"
+            if msg.components and any(getattr(c, "custom_id", "").startswith("signo_v2_") for row in msg.components for c in getattr(row, "children", [row])):
+                msg_existente = msg
+                break
+            # Legado
+            elif msg.embeds and ("juunishi" in str(msg.embeds[0].title).lower() or "signo" in str(msg.embeds[0].title).lower()):
                 msg_existente = msg
                 break
                 
-    view = SignosView()
+    import os as _os
+    _img = _os.path.normpath(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", SIGNOS_IMAGE_PATH))
+    tem_imagem = _os.path.exists(_img) and _os.path.getsize(_img) < 9_000_000
+    
+    view = SignosLayout() if tem_imagem else SignosLayoutSemImagem()
     
     if msg_existente:
-        # Se for uma mensagem com reações, limpamos as reações antigas (opcional, pode falhar por permissões)
         if msg_existente.reactions:
             try:
                 await msg_existente.clear_reactions()
             except Exception:
                 pass
         
-        # Edita a mensagem para incluir a nova View de Botões e o texto atualizado
-        await msg_existente.edit(embed=_build_embed(), view=view)
-        print("✅ Embed de signos atualizado para V2 (Botões).")
+        # Edita a mensagem removendo o embed antigo e injetando o LayoutView V2
+        try:
+            await msg_existente.edit(embed=None, view=view)
+        except Exception:
+            # Se a API reclamar de enviar attachments no edit de LayoutView sem fornecer novos, mandamos de novo a msg abaixo
+            pass
+        print("✅ Embed de signos atualizado para V2 (LayoutView).")
     else:
-        import os as _os
-        _img = _os.path.normpath(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", SIGNOS_IMAGE_PATH))
-        if _os.path.exists(_img) and _os.path.getsize(_img) < 9_000_000:
+        if tem_imagem:
             _arquivo = discord.File(_img, filename="signos.png")
-            _embed = _build_embed()
-            _embed.set_image(url="attachment://signos.png")
-            await canal.send(file=_arquivo, embed=_embed, view=view)
+            await canal.send(file=_arquivo, view=view)
         else:
-            await canal.send(embed=_build_embed(), view=view)
+            await canal.send(view=view)
         print("✅ Embed de signos criado em V2!")
 
 
