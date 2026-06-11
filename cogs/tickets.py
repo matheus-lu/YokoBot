@@ -52,8 +52,8 @@ def formatar_duracao(segundos: int) -> str:
     return ", ".join(partes)
 
 
-# ── View de Avaliação (DM) — mantida como embed padrão ─────
-class AvaliacaoView(View):
+# ── View de Avaliação (DM) — V2 ────────────────────────────
+class AvaliacaoLayout(discord.ui.LayoutView):
     def __init__(self, canal_id: int, autor_id: int):
         super().__init__(timeout=None)
         self.canal_id = canal_id
@@ -65,13 +65,21 @@ class AvaliacaoView(View):
             discord.SelectOption(label="⭐⭐⭐⭐ 4 — Bom",     value="4", emoji="⭐"),
             discord.SelectOption(label="⭐⭐⭐⭐⭐ 5 — Ótimo!", value="5", emoji="⭐"),
         ]
-        select = Select(
+        select = discord.ui.Select(
             placeholder="Selecione de 1 a 5 estrelas...",
             min_values=1, max_values=1, options=options,
             custom_id=f"avaliacao_ticket_{canal_id}",
         )
         select.callback = self._avaliacao_callback
-        self.add_item(select)
+        
+        texto = "**⭐ Avalie o Atendimento**\nComo foi o seu atendimento neste ticket?\nSua opinião é muito importante para nós! 🐉\n\n-# © Ondrakos · 水の竜"
+        
+        itens = [
+            discord.ui.TextDisplay(texto),
+            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
+            discord.ui.ActionRow(select)
+        ]
+        self.add_item(discord.ui.Container(*itens, accent_color=DORORO_COLOR))
 
     async def _avaliacao_callback(self, interaction: discord.Interaction):
         nota = int(interaction.data["values"][0])
@@ -82,12 +90,13 @@ class AvaliacaoView(View):
                 await bot.db.salvar_avaliacao_ticket(self.canal_id, nota)
         except Exception as e:
             print(f"Erro ao salvar avaliação: {e}")
-        embed = discord.Embed(
-            title="Obrigado pela avaliação!",
-            description=f"Você avaliou o atendimento com **{estrelas}** ({nota}/5).\nSua opinião nos ajuda a melhorar! 🐉",
-            color=DORORO_COLOR,
-        )
-        await interaction.response.edit_message(embed=embed, view=None)
+            
+        texto_resp = f"**Obrigado pela avaliação!**\nVocê avaliou o atendimento com **{estrelas}** ({nota}/5).\nSua opinião nos ajuda a melhorar! 🐉"
+        
+        resp_layout = discord.ui.LayoutView()
+        resp_layout.add_item(discord.ui.Container(discord.ui.TextDisplay(texto_resp), accent_color=DORORO_COLOR))
+        
+        await interaction.response.edit_message(view=resp_layout)
         try:
             canal_ticket = interaction.client.get_channel(self.canal_id)
             if canal_ticket:
@@ -360,34 +369,33 @@ class FecharTicketButton(discord.ui.Button):
 
             if autor:
                 duracao_str = formatar_duracao(agora - int(aberto_em)) if aberto_em else "Não disponível"
-                embed_log = discord.Embed(title="# 📁 Registro de Logs", color=discord.Color.dark_gray())
-                embed_log.description = (
+                texto_log = (
+                    f"**# 📁 Registro de Logs**\n\n"
                     f"O ticket {canal.mention} (`{canal.name}`) foi fechado por "
-                    f"{interaction.user.mention} (`{interaction.user.id}`).\n"
+                    f"{interaction.user.mention} (`{interaction.user.id}`).\n\n"
                     f"**Motivo:** {motivo}\n"
-                    f"**Autor:** {autor.mention}"
+                    f"**Autor:** {autor.mention}\n\n"
                 )
                 if aberto_em:
-                    embed_log.add_field(name="**Abertura**",   value=f"<t:{int(aberto_em)}:f>", inline=True)
-                    embed_log.add_field(name="**Fechamento**", value=f"<t:{agora}:f>",           inline=True)
-                embed_log.add_field(name="**Tempo total**", value=duracao_str, inline=False)
+                    texto_log += f"**Abertura:** <t:{int(aberto_em)}:f>\n"
+                    texto_log += f"**Fechamento:** <t:{agora}:f>\n"
+                texto_log += f"**Tempo total:** {duracao_str}"
 
-                class LinkView(View):
-                    def __init__(self, guild_id, channel_id):
-                        super().__init__(timeout=None)
-                        url = f"https://discord.com/channels/{guild_id}/{channel_id}"
-                        self.add_item(discord.ui.Button(label="Ver Ticket Arquivado", style=discord.ButtonStyle.link, emoji="📁", url=url))
-
-                embed_avaliacao = discord.Embed(
-                    title="⭐ Avalie o Atendimento",
-                    description="Como foi o seu atendimento neste ticket?\nSua opinião é muito importante para nós! 🐉",
-                    color=DORORO_COLOR,
-                )
-                embed_avaliacao.set_footer(text="© Ondrakos · 水の竜")
+                url_arquivo = f"https://discord.com/channels/{interaction.guild.id}/{canal.id}"
+                botao_link = discord.ui.Button(label="Ver Ticket Arquivado", style=discord.ButtonStyle.link, emoji="📁", url=url_arquivo)
+                
+                itens_log = [
+                    discord.ui.TextDisplay(texto_log),
+                    discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
+                    discord.ui.ActionRow(botao_link)
+                ]
+                
+                log_layout = discord.ui.LayoutView()
+                log_layout.add_item(discord.ui.Container(*itens_log, accent_color=discord.Color.dark_gray()))
 
                 try:
-                    await autor.send(embed=embed_log, view=LinkView(interaction.guild.id, canal.id))
-                    await autor.send(embed=embed_avaliacao, view=AvaliacaoView(canal_id=canal.id, autor_id=autor_id))
+                    await autor.send(view=log_layout)
+                    await autor.send(view=AvaliacaoLayout(canal_id=canal.id, autor_id=autor_id))
                 except discord.Forbidden:
                     print(f"[Tickets] Não foi possível enviar DM para {autor} (DMs fechadas).")
                 except Exception as e:
