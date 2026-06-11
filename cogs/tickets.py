@@ -183,11 +183,6 @@ class TicketModal(Modal):
             print("Erro ao salvar ticket no banco: " + str(e))
 
         staff_mention = "<@&" + str(config.STAFF_MENTION_ROLE_ID()) + ">"
-        # Ping separado para disparar notificações
-        await canal.send(
-            content=member.mention + " | " + staff_mention,
-            allowed_mentions=discord.AllowedMentions(roles=True, users=True),
-        )
 
         texto_ticket = (
             f"**🐉 • {canal.name}**\n\n"
@@ -199,7 +194,23 @@ class TicketModal(Modal):
             "🔴 Não abra ticket sem necessidade!\n\n"
             f"**📝 Motivo**\n{self.descricao.value}"
         )
-        await canal.send(view=TicketAbertoLayout(texto=texto_ticket))
+
+        import os as _os
+        _base = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+        _img_path = _os.path.join(_base, "ticket_aberto.png")
+        tem_img = _os.path.exists(_img_path) and _os.path.getsize(_img_path) < 9_000_000
+
+        view = TicketAbertoLayout(texto=texto_ticket, tem_img=tem_img)
+        arquivos = []
+        if tem_img:
+            arquivos.append(discord.File(_img_path, filename="ticket_aberto.png"))
+
+        await canal.send(
+            content=member.mention + " | " + staff_mention,
+            allowed_mentions=discord.AllowedMentions(roles=True, users=True),
+            files=arquivos if arquivos else discord.utils.MISSING,
+            view=view
+        )
         await interaction.response.send_message("✅ Ticket aberto em " + canal.mention + "!", ephemeral=True)
 
 
@@ -411,20 +422,24 @@ TicketView = TicketLayout
 
 # ── Layout do Ticket Aberto — V2 ────────────────────────────
 class TicketAbertoLayout(discord.ui.LayoutView):
-    def __init__(self, texto="**🐉 Ticket Aberto**"):
+    def __init__(self, texto="**🐉 Ticket Aberto**", tem_img=False):
         super().__init__(timeout=None)
 
         row1 = discord.ui.ActionRow(FecharTicketButton(), AssumirTicketButton(), AvisarTicketButton())
         row2 = discord.ui.ActionRow(AdicionarTicketButton(), RemoverTicketButton(), RenomearTicketButton())
 
-        self.add_item(discord.ui.Container(
-            discord.ui.TextDisplay(texto),
-            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
-            discord.ui.TextDisplay("-# © Ondrakos · 水の竜"),
-            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
-            row1, row2,
-            accent_color=DORORO_COLOR,
-        ))
+        itens = []
+        itens.append(discord.ui.TextDisplay(texto))
+        itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+        if tem_img:
+            itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://ticket_aberto.png")))
+            itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+        itens.append(discord.ui.TextDisplay("-# © Ondrakos · 水の竜"))
+        itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+        itens.append(row1)
+        itens.append(row2)
+
+        self.add_item(discord.ui.Container(*itens, accent_color=DORORO_COLOR))
 
 # Alias para compatibilidade
 TicketAbertoView = TicketAbertoLayout
