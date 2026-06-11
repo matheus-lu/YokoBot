@@ -52,34 +52,56 @@ def formatar_duracao(segundos: int) -> str:
     return ", ".join(partes)
 
 
-# ── View de Avaliação (DM) — V2 ────────────────────────────
-class AvaliacaoLayout(discord.ui.LayoutView):
-    def __init__(self, canal_id: int, autor_id: int):
+# ── View de Log e Avaliação (DM) — V2 ───────────────────────
+class TicketFechadoDMLayout(discord.ui.LayoutView):
+    def __init__(self, canal_id: int, autor_id: int, texto_log: str, url_arquivo: str):
         super().__init__(timeout=None)
         self.canal_id = canal_id
         self.autor_id = autor_id
-        options = [
-            discord.SelectOption(label="⭐ 1 — Péssimo",    value="1", emoji="⭐"),
-            discord.SelectOption(label="⭐⭐ 2 — Ruim",      value="2", emoji="⭐"),
-            discord.SelectOption(label="⭐⭐⭐ 3 — Regular",  value="3", emoji="⭐"),
-            discord.SelectOption(label="⭐⭐⭐⭐ 4 — Bom",     value="4", emoji="⭐"),
-            discord.SelectOption(label="⭐⭐⭐⭐⭐ 5 — Ótimo!", value="5", emoji="⭐"),
-        ]
-        select = discord.ui.Select(
-            placeholder="Selecione de 1 a 5 estrelas...",
-            min_values=1, max_values=1, options=options,
-            custom_id=f"avaliacao_ticket_{canal_id}",
-        )
-        select.callback = self._avaliacao_callback
+        self.texto_log = texto_log
+        self.url_arquivo = url_arquivo
         
-        texto = "**⭐ Avalie o Atendimento**\nComo foi o seu atendimento neste ticket?\nSua opinião é muito importante para nós! 🐉\n\n-# © Ondrakos · 水の竜"
+        self._montar_layout(nota=None)
         
-        itens = [
-            discord.ui.TextDisplay(texto),
+    def _montar_layout(self, nota=None):
+        self.clear_items()
+        
+        # 1) Container do Log
+        botao_link = discord.ui.Button(label="Ver Ticket Arquivado", style=discord.ButtonStyle.link, emoji="📁", url=self.url_arquivo)
+        itens_log = [
+            discord.ui.TextDisplay(self.texto_log),
             discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
-            discord.ui.ActionRow(select)
+            discord.ui.ActionRow(botao_link)
         ]
-        self.add_item(discord.ui.Container(*itens, accent_color=DORORO_COLOR))
+        self.add_item(discord.ui.Container(*itens_log, accent_color=discord.Color.dark_gray()))
+        
+        # 2) Container da Avaliação
+        if nota is None:
+            options = [
+                discord.SelectOption(label="⭐ 1 — Péssimo",    value="1", emoji="⭐"),
+                discord.SelectOption(label="⭐⭐ 2 — Ruim",      value="2", emoji="⭐"),
+                discord.SelectOption(label="⭐⭐⭐ 3 — Regular",  value="3", emoji="⭐"),
+                discord.SelectOption(label="⭐⭐⭐⭐ 4 — Bom",     value="4", emoji="⭐"),
+                discord.SelectOption(label="⭐⭐⭐⭐⭐ 5 — Ótimo!", value="5", emoji="⭐"),
+            ]
+            select = discord.ui.Select(
+                placeholder="Selecione de 1 a 5 estrelas...",
+                min_values=1, max_values=1, options=options,
+                custom_id=f"avaliacao_ticket_{self.canal_id}",
+            )
+            select.callback = self._avaliacao_callback
+            texto_ava = "**⭐ Avalie o Atendimento**\nComo foi o seu atendimento neste ticket?\nSua opinião é muito importante para nós! 🐉\n\n-# © Ondrakos · 水の竜"
+            itens_ava = [
+                discord.ui.TextDisplay(texto_ava),
+                discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
+                discord.ui.ActionRow(select)
+            ]
+        else:
+            estrelas = "⭐" * nota
+            texto_resp = f"**Obrigado pela avaliação!**\nVocê avaliou o atendimento com **{estrelas}** ({nota}/5).\nSua opinião nos ajuda a melhorar! 🐉\n\n-# © Ondrakos · 水の竜"
+            itens_ava = [discord.ui.TextDisplay(texto_resp)]
+            
+        self.add_item(discord.ui.Container(*itens_ava, accent_color=DORORO_COLOR))
 
     async def _avaliacao_callback(self, interaction: discord.Interaction):
         nota = int(interaction.data["values"][0])
@@ -91,12 +113,9 @@ class AvaliacaoLayout(discord.ui.LayoutView):
         except Exception as e:
             print(f"Erro ao salvar avaliação: {e}")
             
-        texto_resp = f"**Obrigado pela avaliação!**\nVocê avaliou o atendimento com **{estrelas}** ({nota}/5).\nSua opinião nos ajuda a melhorar! 🐉"
+        self._montar_layout(nota=nota)
+        await interaction.response.edit_message(view=self)
         
-        resp_layout = discord.ui.LayoutView()
-        resp_layout.add_item(discord.ui.Container(discord.ui.TextDisplay(texto_resp), accent_color=DORORO_COLOR))
-        
-        await interaction.response.edit_message(view=resp_layout)
         try:
             canal_ticket = interaction.client.get_channel(self.canal_id)
             if canal_ticket:
@@ -382,20 +401,15 @@ class FecharTicketButton(discord.ui.Button):
                 texto_log += f"**Tempo total:** {duracao_str}"
 
                 url_arquivo = f"https://discord.com/channels/{interaction.guild.id}/{canal.id}"
-                botao_link = discord.ui.Button(label="Ver Ticket Arquivado", style=discord.ButtonStyle.link, emoji="📁", url=url_arquivo)
                 
-                itens_log = [
-                    discord.ui.TextDisplay(texto_log),
-                    discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
-                    discord.ui.ActionRow(botao_link)
-                ]
-                
-                log_layout = discord.ui.LayoutView()
-                log_layout.add_item(discord.ui.Container(*itens_log, accent_color=discord.Color.dark_gray()))
-
                 try:
-                    await autor.send(view=log_layout)
-                    await autor.send(view=AvaliacaoLayout(canal_id=canal.id, autor_id=autor_id))
+                    layout_dm = TicketFechadoDMLayout(
+                        canal_id=canal.id,
+                        autor_id=autor_id,
+                        texto_log=texto_log,
+                        url_arquivo=url_arquivo
+                    )
+                    await autor.send(view=layout_dm)
                 except discord.Forbidden:
                     print(f"[Tickets] Não foi possível enviar DM para {autor} (DMs fechadas).")
                 except Exception as e:
