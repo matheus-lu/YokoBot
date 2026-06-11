@@ -161,7 +161,7 @@ _status_dono_fila = {}
 PLAYER_COLOR = discord.Color.from_rgb(31, 139, 76)
 
 # ── URL da playlist especial (preencher aqui) ──────────────
-PLAYLIST_URL = ""  # Ex: "https://www.youtube.com/playlist?list=..."
+PLAYLIST_URL = "https://www.youtube.com/playlist?list=PLXvc_iXcGX16gITfKfby5zfTTwppfnOII"  # Ex: "https://www.youtube.com/playlist?list=..."
                    # ou link do Spotify
 
 
@@ -231,11 +231,11 @@ async def resolver_url(entry):
         if info and "url" in info:
             return {
                 "url": info["url"],
-                "titulo": info.get("title", entry.get("titulo", entry.get("title", "Desconhecido"))),
-                "duracao": info.get("duration", 0),
-                "thumbnail": info.get("thumbnail", None),
-                "pagina": info.get("webpage_url", target),
-                "canal": info.get("uploader", "Desconhecido"),
+                "titulo": info.get("title") or entry.get("titulo") or entry.get("title", "Desconhecido"),
+                "duracao": info.get("duration") or entry.get("duracao", 0),
+                "thumbnail": info.get("thumbnail") or entry.get("thumbnail", None),
+                "pagina": info.get("webpage_url") or target,
+                "canal": info.get("uploader") or entry.get("canal", "Desconhecido"),
                 "needs_resolve": False,
             }
     except Exception as e:
