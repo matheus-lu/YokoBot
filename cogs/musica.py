@@ -160,6 +160,10 @@ _status_dono_fila = {}
 
 PLAYER_COLOR = discord.Color.from_rgb(31, 139, 76)
 
+# ── URL da playlist especial (preencher aqui) ──────────────
+PLAYLIST_URL = ""  # Ex: "https://www.youtube.com/playlist?list=..."
+                   # ou link do Spotify
+
 
 def get_fila(guild_id):
     if guild_id not in filas:
@@ -391,15 +395,17 @@ class PlayerLayoutTocando(discord.ui.LayoutView):
             btn_pausar = discord.ui.Button(label="Pausar", emoji=discord.PartialEmoji(name="_pause", id=1507462817450688743), style=discord.ButtonStyle.secondary, custom_id="musica_pausar")
 
         row1 = discord.ui.ActionRow(
+            discord.ui.Button(label="Play", emoji=discord.PartialEmoji(name="_play", id=1507462784332468234), style=discord.ButtonStyle.secondary, custom_id="musica_play_disabled", disabled=True),
             btn_pausar,
             discord.ui.Button(label="Pular", emoji=discord.PartialEmoji(name="_pular", id=1507462917606346753), style=discord.ButtonStyle.secondary, custom_id="musica_pular"),
             discord.ui.Button(label="Parar", emoji=discord.PartialEmoji(name="_stop", id=1507462858244493473), style=discord.ButtonStyle.danger, custom_id="musica_parar"),
-            discord.ui.Button(label="Ver Fila", style=discord.ButtonStyle.primary, custom_id="musica_ver_fila"),
             discord.ui.Button(label="Voltar", emoji=discord.PartialEmoji(name="_voltar", id=1507462967933931520), style=discord.ButtonStyle.secondary, custom_id="musica_voltar"),
         )
         row2 = discord.ui.ActionRow(
             discord.ui.Button(label="Repetir", emoji=discord.PartialEmoji(name="_repetir", id=1507462942185095340), style=discord.ButtonStyle.success if rep_ativo else discord.ButtonStyle.secondary, custom_id="musica_repetir"),
-            discord.ui.Button(label="+ Adicionar", style=discord.ButtonStyle.success, custom_id="musica_adicionar"),
+            discord.ui.Button(label="Adicionar", emoji=discord.PartialEmoji(name="_mais", id=1514529996998443129), style=discord.ButtonStyle.success, custom_id="musica_adicionar"),
+            discord.ui.Button(label="Playlist", emoji=discord.PartialEmoji(name="_playlist", id=1514529877770899546), style=discord.ButtonStyle.primary, custom_id="musica_playlist"),
+            discord.ui.Button(label="Ver Fila", emoji=discord.PartialEmoji(name="_saibamais", id=1514529946444365884), style=discord.ButtonStyle.primary, custom_id="musica_ver_fila"),
         )
 
         filhos = [
@@ -522,6 +528,38 @@ class PlayerLayoutTocando(discord.ui.LayoutView):
             return
         await interaction.response.send_modal(AdicionarMusicaModal())
 
+    async def _callback_playlist(self, interaction: discord.Interaction, button):
+        if not PLAYLIST_URL:
+            await interaction.response.send_message("❌ Nenhuma playlist configurada ainda.", ephemeral=True)
+            return
+        vc = interaction.guild.voice_client
+        if vc is None:
+            await interaction.response.send_message("❌ O bot não está em nenhum canal. Pressione Play primeiro!", ephemeral=True)
+            return
+        await interaction.response.defer(ephemeral=True)
+        try:
+            resultado = await buscar_info(PLAYLIST_URL)
+        except Exception as e:
+            await interaction.followup.send("❌ Erro ao carregar playlist: " + str(e)[:200], ephemeral=True)
+            return
+        if resultado is None:
+            await interaction.followup.send("❌ Não foi possível carregar a playlist.", ephemeral=True)
+            return
+        guild = interaction.guild
+        bot = interaction.client
+        fila = get_fila(guild.id)
+        cancelar_timeout(guild.id)
+        musicas = resultado["musicas"] if resultado["tipo"] == "playlist" else [resultado]
+        for m in musicas:
+            fila.append(m)
+        if not vc.is_playing() and not vc.is_paused():
+            await tocar_proxima(guild, bot)
+        else:
+            await atualizar_embed_player(guild, guild_id=guild.id)
+        await interaction.followup.send(
+            "🎶 Playlist adicionada! **" + str(len(musicas)) + " músicas** na fila.", ephemeral=True
+        )
+
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         cid = interaction.data.get("custom_id", "")
         cb = {
@@ -532,6 +570,7 @@ class PlayerLayoutTocando(discord.ui.LayoutView):
             "musica_voltar": self._callback_voltar,
             "musica_repetir": self._callback_repetir,
             "musica_adicionar": self._callback_adicionar,
+            "musica_playlist": self._callback_playlist,
         }
         if cid in cb:
             await cb[cid](interaction, None)
@@ -549,11 +588,13 @@ class PlayerLayoutVazio(discord.ui.LayoutView):
             discord.ui.Button(label="Pausar", emoji=discord.PartialEmoji(name="_pause", id=1507462817450688743), style=discord.ButtonStyle.secondary, custom_id="musica_pausar_disabled", disabled=True),
             discord.ui.Button(label="Pular", emoji=discord.PartialEmoji(name="_pular", id=1507462917606346753), style=discord.ButtonStyle.secondary, custom_id="musica_pular_disabled", disabled=True),
             discord.ui.Button(label="Parar", emoji=discord.PartialEmoji(name="_stop", id=1507462858244493473), style=discord.ButtonStyle.danger, custom_id="musica_parar_disabled", disabled=True),
+            discord.ui.Button(label="Voltar", emoji=discord.PartialEmoji(name="_voltar", id=1507462967933931520), style=discord.ButtonStyle.secondary, custom_id="musica_voltar_disabled", disabled=True),
         )
         row2 = discord.ui.ActionRow(
-            discord.ui.Button(label="Voltar", emoji=discord.PartialEmoji(name="_voltar", id=1507462967933931520), style=discord.ButtonStyle.secondary, custom_id="musica_voltar_disabled", disabled=True),
             discord.ui.Button(label="Repetir", emoji=discord.PartialEmoji(name="_repetir", id=1507462942185095340), style=discord.ButtonStyle.secondary, custom_id="musica_repetir_disabled", disabled=True),
-            discord.ui.Button(label="+ Adicionar", style=discord.ButtonStyle.secondary, custom_id="musica_adicionar_disabled", disabled=True),
+            discord.ui.Button(label="Adicionar", emoji=discord.PartialEmoji(name="_mais", id=1514529996998443129), style=discord.ButtonStyle.secondary, custom_id="musica_adicionar_disabled", disabled=True),
+            discord.ui.Button(label="Playlist", emoji=discord.PartialEmoji(name="_playlist", id=1514529877770899546), style=discord.ButtonStyle.secondary, custom_id="musica_playlist_disabled", disabled=True),
+            discord.ui.Button(label="Ver Fila", emoji=discord.PartialEmoji(name="_saibamais", id=1514529946444365884), style=discord.ButtonStyle.secondary, custom_id="musica_ver_fila_disabled", disabled=True),
         )
         self.add_item(discord.ui.Container(
             discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://player.png")),
@@ -609,15 +650,17 @@ class PlayerLayoutSemMusica(discord.ui.LayoutView):
     def __init__(self):
         super().__init__(timeout=None)
         row = discord.ui.ActionRow(
+            discord.ui.Button(label="Play", emoji=discord.PartialEmoji(name="_play", id=1507462784332468234), style=discord.ButtonStyle.secondary, custom_id="musica_play_disabled2", disabled=True),
             discord.ui.Button(label="Pausar", emoji=discord.PartialEmoji(name="_pause", id=1507462817450688743), style=discord.ButtonStyle.secondary, custom_id="musica_sem_pausar", disabled=True),
             discord.ui.Button(label="Pular", emoji=discord.PartialEmoji(name="_pular", id=1507462917606346753), style=discord.ButtonStyle.secondary, custom_id="musica_sem_pular", disabled=True),
             discord.ui.Button(label="Parar", emoji=discord.PartialEmoji(name="_stop", id=1507462858244493473), style=discord.ButtonStyle.danger, custom_id="musica_sem_parar"),
-            discord.ui.Button(label="Ver Fila", style=discord.ButtonStyle.primary, custom_id="musica_sem_ver_fila", disabled=True),
             discord.ui.Button(label="Voltar", emoji=discord.PartialEmoji(name="_voltar", id=1507462967933931520), style=discord.ButtonStyle.secondary, custom_id="musica_sem_voltar", disabled=True),
         )
         row2 = discord.ui.ActionRow(
             discord.ui.Button(label="Repetir", emoji=discord.PartialEmoji(name="_repetir", id=1507462942185095340), style=discord.ButtonStyle.secondary, custom_id="musica_sem_repetir", disabled=True),
-            discord.ui.Button(label="+ Adicionar", style=discord.ButtonStyle.success, custom_id="musica_sem_adicionar"),
+            discord.ui.Button(label="Adicionar", emoji=discord.PartialEmoji(name="_mais", id=1514529996998443129), style=discord.ButtonStyle.success, custom_id="musica_sem_adicionar"),
+            discord.ui.Button(label="Playlist", emoji=discord.PartialEmoji(name="_playlist", id=1514529877770899546), style=discord.ButtonStyle.primary, custom_id="musica_sem_playlist"),
+            discord.ui.Button(label="Ver Fila", emoji=discord.PartialEmoji(name="_saibamais", id=1514529946444365884), style=discord.ButtonStyle.primary, custom_id="musica_sem_ver_fila", disabled=True),
         )
         self.add_item(discord.ui.Container(
             discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://player.png")),
@@ -639,6 +682,9 @@ class PlayerLayoutSemMusica(discord.ui.LayoutView):
             return False
         if cid == "musica_sem_adicionar":
             await self._callback_adicionar(interaction)
+            return False
+        if cid == "musica_sem_playlist":
+            await self._callback_playlist(interaction)
             return False
         return True
 
@@ -671,6 +717,38 @@ class PlayerLayoutSemMusica(discord.ui.LayoutView):
             await interaction.response.send_message("O bot não está em nenhum canal!", ephemeral=True)
             return
         await interaction.response.send_modal(AdicionarMusicaModal())
+
+    async def _callback_playlist(self, interaction: discord.Interaction):
+        if not PLAYLIST_URL:
+            await interaction.response.send_message("❌ Nenhuma playlist configurada ainda.", ephemeral=True)
+            return
+        vc = interaction.guild.voice_client
+        if vc is None:
+            await interaction.response.send_message("❌ O bot não está em nenhum canal. Pressione Play primeiro!", ephemeral=True)
+            return
+        await interaction.response.defer(ephemeral=True)
+        try:
+            resultado = await buscar_info(PLAYLIST_URL)
+        except Exception as e:
+            await interaction.followup.send("❌ Erro ao carregar playlist: " + str(e)[:200], ephemeral=True)
+            return
+        if resultado is None:
+            await interaction.followup.send("❌ Não foi possível carregar a playlist.", ephemeral=True)
+            return
+        guild = interaction.guild
+        bot = interaction.client
+        fila = get_fila(guild.id)
+        cancelar_timeout(guild.id)
+        musicas = resultado["musicas"] if resultado["tipo"] == "playlist" else [resultado]
+        for m in musicas:
+            fila.append(m)
+        if not vc.is_playing() and not vc.is_paused():
+            await tocar_proxima(guild, bot)
+        else:
+            await atualizar_embed_player(guild, guild_id=guild.id)
+        await interaction.followup.send(
+            "🎶 Playlist adicionada! **" + str(len(musicas)) + " músicas** na fila.", ephemeral=True
+        )
 
 
 # ── Modal de adicionar música ──────────────────────────────
@@ -1026,6 +1104,44 @@ class _PersistentMusicaHandler(discord.ui.View):
             await interaction.response.send_message("O bot não está em nenhum canal!", ephemeral=True)
             return
         await interaction.response.send_modal(AdicionarMusicaModal())
+
+    @discord.ui.button(label="playlist", custom_id="musica_playlist", row=2)
+    async def _playlist(self, interaction: discord.Interaction, button: Button):
+        if not PLAYLIST_URL:
+            await interaction.response.send_message("❌ Nenhuma playlist configurada ainda.", ephemeral=True)
+            return
+        vc = interaction.guild.voice_client
+        if vc is None:
+            await interaction.response.send_message("❌ O bot não está em nenhum canal. Pressione Play primeiro!", ephemeral=True)
+            return
+        await interaction.response.defer(ephemeral=True)
+        try:
+            resultado = await buscar_info(PLAYLIST_URL)
+        except Exception as e:
+            await interaction.followup.send("❌ Erro ao carregar playlist: " + str(e)[:200], ephemeral=True)
+            return
+        if resultado is None:
+            await interaction.followup.send("❌ Não foi possível carregar a playlist.", ephemeral=True)
+            return
+        guild = interaction.guild
+        bot = interaction.client
+        fila = get_fila(guild.id)
+        cancelar_timeout(guild.id)
+        musicas = resultado["musicas"] if resultado["tipo"] == "playlist" else [resultado]
+        for m in musicas:
+            fila.append(m)
+        if not vc.is_playing() and not vc.is_paused():
+            await tocar_proxima(guild, bot)
+        else:
+            await atualizar_embed_player(guild, guild_id=guild.id)
+        await interaction.followup.send(
+            "🎶 Playlist adicionada! **" + str(len(musicas)) + " músicas** na fila.", ephemeral=True
+        )
+
+    @discord.ui.button(label="sem_playlist", custom_id="musica_sem_playlist", row=2)
+    async def _sem_playlist(self, interaction: discord.Interaction, button: Button):
+        # Mesmo callback — reutiliza a lógica do playlist principal
+        await self._playlist(interaction, button)
 
 
 # ── Cog principal ──────────────────────────────────────────
