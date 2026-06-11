@@ -112,7 +112,7 @@ YDL_OPTIONS_SINGLE = {
     "cookiefile": config.COOKIES_PATH,
     "js_runtimes": {"node": {"path": "/usr/bin/node"}},
     "extractor_args": {
-        "youtube": {"player_client": ["mweb", "web"]},
+        "youtube": {"player_client": ["android", "ios", "web"]},
         "youtubepot-bgutilscript": {"server_home": ["/application/bgutil-ytdlp-pot-provider/server"]},
     },
 }
@@ -376,8 +376,10 @@ class PlayerLayoutTocando(discord.ui.LayoutView):
 
         duracao = formatar_duracao(musica["duracao"])
         canal_nome = musica["canal"]
-        titulo_exibicao = musica.get("titulo_embed") or musica["titulo"]
-        info_text = "### 🎵 " + titulo_exibicao + "\n⏱️ **" + duracao + "**  ·  🎙️ " + canal_nome
+        if musica.get("titulo_embed"):
+            info_text = "### " + musica["titulo_embed"] + "\n⏱️ **" + duracao + "**  ·  🎙️ " + canal_nome
+        else:
+            info_text = "### 🎵 " + musica["titulo"] + "\n⏱️ **" + duracao + "**  ·  🎙️ " + canal_nome
         if canal_voz:
             info_text += "  ·  🔊 **" + canal_voz + "**"
 
@@ -479,6 +481,7 @@ class PlayerLayoutTocando(discord.ui.LayoutView):
             else:
                 vc.stop()
             await asyncio.sleep(0.2)
+            await atualizar_status_canal_voz(interaction.guild, "", bot=bot)
             await vc.disconnect()
             await bot.change_presence(status=discord.Status.online, activity=discord.Activity(type=discord.ActivityType.playing, name="GtaV Roleplay"))
             await atualizar_embed_player(interaction.guild)
@@ -566,7 +569,7 @@ class PlayerLayoutTocando(discord.ui.LayoutView):
         nome_playlist = resultado.get("titulo") if resultado["tipo"] == "playlist" else ""
         for m in musicas:
             if nome_playlist:
-                m["titulo_embed"] = f"<:_playlist:1514529877770899546> [{nome_playlist}] | {m['titulo']}"
+                m["titulo_embed"] = f"<:_playlist:1514529877770899546> {nome_playlist} | {m['titulo']}"
             fila.append(m)
         if not vc.is_playing() and not vc.is_paused():
             await tocar_proxima(guild, bot)
@@ -723,6 +726,7 @@ class PlayerLayoutSemMusica(discord.ui.LayoutView):
             else:
                 vc.stop()
             await asyncio.sleep(0.2)
+            await atualizar_status_canal_voz(interaction.guild, "", bot=interaction.client)
             await vc.disconnect()
             await interaction.client.change_presence(status=discord.Status.online, activity=discord.Activity(type=discord.ActivityType.playing, name="GtaV Roleplay"))
         await atualizar_embed_player(interaction.guild)
@@ -759,7 +763,7 @@ class PlayerLayoutSemMusica(discord.ui.LayoutView):
         nome_playlist = resultado.get("titulo") if resultado["tipo"] == "playlist" else ""
         for m in musicas:
             if nome_playlist:
-                m["titulo_embed"] = f"<:_playlist:1514529877770899546> [{nome_playlist}] | {m['titulo']}"
+                m["titulo_embed"] = f"<:_playlist:1514529877770899546> {nome_playlist} | {m['titulo']}"
             fila.append(m)
         if not vc.is_playing() and not vc.is_paused():
             await tocar_proxima(guild, bot)
@@ -806,7 +810,7 @@ class AdicionarMusicaModal(Modal):
             nome_playlist = resultado.get("titulo", "")
             for m in musicas:
                 if nome_playlist:
-                    m["titulo_embed"] = f"<:_playlist:1514529877770899546> [{nome_playlist}] | {m['titulo']}"
+                    m["titulo_embed"] = f"<:_playlist:1514529877770899546> {nome_playlist} | {m['titulo']}"
                 fila.append(m)
             if not vc.is_playing() and not vc.is_paused():
                 await tocar_proxima(guild, bot)
@@ -1034,6 +1038,7 @@ class _PersistentMusicaHandler(discord.ui.View):
             else:
                 vc.stop()
             await asyncio.sleep(0.2)
+            await atualizar_status_canal_voz(interaction.guild, "", bot=bot)
             await vc.disconnect()
             await bot.change_presence(status=discord.Status.online, activity=discord.Activity(type=discord.ActivityType.playing, name="GtaV Roleplay"))
             await atualizar_embed_player(interaction.guild)
@@ -1158,7 +1163,7 @@ class _PersistentMusicaHandler(discord.ui.View):
         nome_playlist = resultado.get("titulo") if resultado["tipo"] == "playlist" else ""
         for m in musicas:
             if nome_playlist:
-                m["titulo_embed"] = f"<:_playlist:1514529877770899546> [{nome_playlist}] | {m['titulo']}"
+                m["titulo_embed"] = f"<:_playlist:1514529877770899546> {nome_playlist} | {m['titulo']}"
             fila.append(m)
         if not vc.is_playing() and not vc.is_paused():
             await tocar_proxima(guild, bot)
