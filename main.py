@@ -1209,15 +1209,23 @@ async def on_ready():
         if not canal_ia:
             continue
         tem_embed_ia = False
-        async for msg in canal_ia.history(limit=10):
-            if msg.author == bot.user and msg.embeds:
-                tem_embed_ia = True
-                break
+        try:
+            async for msg in canal_ia.history(limit=10):
+                if msg.author == bot.user:
+                    tem_embed_ia = True
+                    break
+        except Exception as e:
+            print(f"[Aviso] Erro ao buscar historico do canal IA: {e}")
+            tem_embed_ia = True # Assume que existe para nao duplicar
+            
         if not tem_embed_ia:
-            await _criar_embed_ia(canal_ia)
-            print("✅ Embed de IA criado!")
+            try:
+                await _criar_embed_ia(canal_ia)
+                print("✅ Painel de IA criado (V2)!")
+            except Exception as e:
+                print(f"[Erro] Falha ao criar painel IA: {e}")
         else:
-            print("✅ Embed de IA ja existe, mantendo.")
+            print("✅ Painel de IA ja existe em V2, mantendo.")
 
     # Setup embed do site (primeiro no canal de divulgação)
     await setup_site_embed(bot)
