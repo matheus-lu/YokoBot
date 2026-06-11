@@ -229,6 +229,95 @@ class SiteLayoutSemImagem(discord.ui.LayoutView):
     )
 
 
+REGRAS_TITULO = "**🐉 │▸Os 10 Mandamentos do clã Ondrakos**"
+REGRAS_FOOTER = "-# © Ondrakos · 水の竜"
+
+REGRAS_BODY = """\
+›1. Respeite todos os membros
+🫡⧽Trate todos com respeito. Brincadeiras são bem-vindas, mas ofensas, humilhações, preconceito ou ataques pessoais não serão aceitos.
+
+›2. Não perturbe a paz do clã
+👾⧽Evite spam, flood, mensagens repetidas, gritos exagerados em caps lock ou qualquer atitude que atrapalhe a conversa dos outros.
+
+›3. Use os canais corretamente
+⚖️⧽Cada canal tem sua função. Poste mensagens, mídias, comandos, divulgações e pedidos nos lugares certos para manter o servidor organizado.
+
+›4. Proibido conteúdo pesado ou inadequado
+🔞⧽Nada de conteúdo explícito, chocante, ilegal, gore, NSFW fora de local permitido, apologia ao crime ou qualquer coisa que coloque o servidor em risco.
+
+›5. Não cause brigas desnecessárias
+🗯️⧽Discussões acontecem, mas provocar, debochar, perseguir ou alimentar confusão não será tolerado. Resolva com maturidade ou chame a equipe.
+
+›6. Respeite a equipe
+👑⧽Moderadores e administradores estão aqui para manter o equilíbrio do santuário. Se discordar de algo, converse com calma pelo canal correto.
+
+›7. Não divulgue sem permissão
+🛜⧽Links, servidores, redes sociais, vendas ou divulgações só podem ser enviados se forem permitidos pela equipe ou no canal apropriado.
+
+›8. Proteja sua conta e sua privacidade
+👤⧽Não compartilhe dados pessoais seus ou de outras pessoas. Cuidado com golpes, links suspeitos e mensagens privadas estranhas.
+
+›9. Use os tickets com responsabilidade
+🎟️⧽Abra ticket apenas quando realmente precisar de ajuda, serviço ou atendimento. Explique o motivo com clareza e aguarde a resposta da equipe.
+
+›10. Honre o espírito do dragão
+👥⧽Entre para somar, conversar, criar amizades e manter a energia do servidor boa. Quem desrespeitar o clã poderá receber aviso, mute, kick ou ban."""
+
+class RegrasLayout(discord.ui.LayoutView):
+    def __init__(self, tem_img=False, tem_sep=False):
+        super().__init__(timeout=None)
+
+        itens = []
+        if tem_img:
+            itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://mandamentos.png")))
+            itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+        itens.append(discord.ui.TextDisplay(REGRAS_TITULO))
+        itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+        itens.append(discord.ui.TextDisplay(REGRAS_BODY))
+        itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+        if tem_sep:
+            itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://sep_anuncio.png")))
+            itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+        itens.append(discord.ui.TextDisplay(REGRAS_FOOTER))
+
+        self.add_item(discord.ui.Container(*itens, accent_color=DORORO_COLOR))
+
+async def setup_regras_embed(bot):
+    CANAL_REGRAS_ID = 1480660903363084318
+    canal = bot.get_channel(CANAL_REGRAS_ID)
+    if not canal:
+        return
+        
+    async for msg in canal.history(limit=10):
+        if msg.author == bot.user:
+            try:
+                raw_data = await bot.http.get_message(canal.id, msg.id)
+                if "Os 10 Mandamentos" in str(raw_data):
+                    print("✅ Embed de regras já existe, mantendo.")
+                    return
+            except Exception:
+                pass
+
+    _base = os.path.dirname(os.path.abspath(__file__))
+    _img_path = os.path.join(_base, "mandamentos.png")
+    _sep_path = os.path.join(_base, "sep_anuncio.png")
+    tem_img = os.path.exists(_img_path) and os.path.getsize(_img_path) < 9_000_000
+    tem_sep = os.path.exists(_sep_path) and os.path.getsize(_sep_path) < 9_000_000
+
+    view = RegrasLayout(tem_img=tem_img, tem_sep=tem_sep)
+    arquivos = []
+    if tem_img:
+        arquivos.append(discord.File(_img_path, filename="mandamentos.png"))
+    if tem_sep:
+        arquivos.append(discord.File(_sep_path, filename="sep_anuncio.png"))
+
+    if arquivos:
+        await canal.send(files=arquivos, view=view)
+    else:
+        await canal.send(view=view)
+    print("✅ Embed de regras criado!")
+
+
 async def setup_site_embed(bot):
     """Cria o embed do site no canal de divulgação se não existir."""
     canal = bot.get_channel(CANAL_DIVULGACAO_ID)
@@ -1137,6 +1226,9 @@ async def on_ready():
     # Setup embed de verificação — delega para o cog
     from cogs.verificacao import setup_verificacao_embed
     await setup_verificacao_embed(bot)
+    
+    # Setup embed de regras
+    await setup_regras_embed(bot)
 
 
 class EditarMensagemModal(Modal):
