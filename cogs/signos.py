@@ -122,6 +122,9 @@ class SignosLayout(discord.ui.LayoutView):
             discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
             discord.ui.TextDisplay(EMBED_DESC),
             discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
+            discord.ui.MediaGallery(
+                discord.MediaGalleryItem("attachment://sep_anuncio.png"),
+            ),
             discord.ui.TextDisplay("-# 十二支 — Juunishi 星座"),
             discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
             row1, row2, row3,
