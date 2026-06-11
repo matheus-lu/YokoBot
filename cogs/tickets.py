@@ -327,7 +327,7 @@ class TicketModal(Modal):
 # ── Botões do Ticket Aberto ────────────────────────────────
 class FecharTicketButton(discord.ui.Button):
     def __init__(self):
-        super().__init__(label="Fechar Ticket", style=discord.ButtonStyle.danger, custom_id="ticket_fechar")
+        super().__init__(label="Fechar Ticket", style=discord.ButtonStyle.danger, emoji="🔒", custom_id="ticket_fechar")
 
     async def callback(self, interaction: discord.Interaction):
         if not is_staff(interaction):
@@ -539,7 +539,7 @@ class AdicionarTicketButton(discord.ui.Button):
         if not is_staff(interaction):
             await interaction.response.send_message("Apenas a staff pode usar este botão!", ephemeral=True)
             return
-        await interaction.response.send_modal(AdicionarMembroModal())
+        await interaction.response.send_message("Selecione abaixo o membro que deseja adicionar:", view=AdicionarMembroView(), ephemeral=True)
 
 
 class RemoverTicketButton(discord.ui.Button):
@@ -550,7 +550,7 @@ class RemoverTicketButton(discord.ui.Button):
         if not is_staff(interaction):
             await interaction.response.send_message("Apenas a staff pode usar este botão!", ephemeral=True)
             return
-        await interaction.response.send_modal(RemoverMembroModal())
+        await interaction.response.send_message("Selecione abaixo o membro que deseja remover:", view=RemoverMembroView(), ephemeral=True)
 
 
 class RenomearTicketButton(discord.ui.Button):
@@ -772,16 +772,14 @@ class TicketFechadoLayout(discord.ui.LayoutView):
 TicketFechadoView = TicketFechadoLayout
 
 
-# ── Modais Auxiliares ──────────────────────────────────────
-class AdicionarMembroModal(Modal):
+# ── Selects Auxiliares ──────────────────────────────────────
+class AdicionarMembroSelect(discord.ui.UserSelect):
     def __init__(self):
-        super().__init__(title="Adicionar Membro ao Ticket")
-        self.user_id = TextInput(label="ID do usuário", placeholder="Ex: 123456789012345678", required=True)
-        self.add_item(self.user_id)
+        super().__init__(placeholder="Selecione um membro para adicionar...", min_values=1, max_values=1)
 
-    async def on_submit(self, interaction: discord.Interaction):
+    async def callback(self, interaction: discord.Interaction):
+        member = self.values[0]
         try:
-            member = await interaction.guild.fetch_member(int(self.user_id.value))
             await interaction.channel.set_permissions(member, view_channel=True, send_messages=True, read_message_history=True)
             
             texto_add = f"✅ {member.mention} **foi adicionado(a) a este ticket!**"
@@ -793,18 +791,21 @@ class AdicionarMembroModal(Modal):
                 allowed_mentions=discord.AllowedMentions(users=True),
             )
         except Exception:
-            await interaction.response.send_message("❌ Usuário não encontrado.", ephemeral=True)
+            await interaction.response.send_message("❌ Erro ao adicionar usuário.", ephemeral=True)
 
-
-class RemoverMembroModal(Modal):
+class AdicionarMembroView(discord.ui.View):
     def __init__(self):
-        super().__init__(title="Remover Membro do Ticket")
-        self.user_id = TextInput(label="ID do usuário", placeholder="Ex: 123456789012345678", required=True)
-        self.add_item(self.user_id)
+        super().__init__(timeout=180)
+        self.add_item(AdicionarMembroSelect())
 
-    async def on_submit(self, interaction: discord.Interaction):
+
+class RemoverMembroSelect(discord.ui.UserSelect):
+    def __init__(self):
+        super().__init__(placeholder="Selecione um membro para remover...", min_values=1, max_values=1)
+
+    async def callback(self, interaction: discord.Interaction):
+        member = self.values[0]
         try:
-            member = await interaction.guild.fetch_member(int(self.user_id.value))
             await interaction.channel.set_permissions(member, overwrite=None)
             
             texto_rem = f"✅ {member.mention} **removido(a) do ticket!**"
@@ -813,7 +814,12 @@ class RemoverMembroModal(Modal):
             
             await interaction.response.send_message(view=layout_rem, ephemeral=True)
         except Exception:
-            await interaction.response.send_message("❌ Usuário não encontrado.", ephemeral=True)
+            await interaction.response.send_message("❌ Erro ao remover usuário.", ephemeral=True)
+
+class RemoverMembroView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=180)
+        self.add_item(RemoverMembroSelect())
 
 
 class RenomearTicketModal(Modal):
@@ -825,7 +831,12 @@ class RenomearTicketModal(Modal):
     async def on_submit(self, interaction: discord.Interaction):
         try:
             await interaction.channel.edit(name=self.novo_nome.value.lower().replace(" ", "-"))
-            await interaction.response.send_message("✅ Ticket renomeado!", ephemeral=True)
+            
+            texto_ren = f"✅ **Ticket renomeado para** `{self.novo_nome.value.lower().replace(' ', '-')}`**!**"
+            layout_ren = discord.ui.LayoutView()
+            layout_ren.add_item(discord.ui.Container(discord.ui.TextDisplay(texto_ren), accent_color=discord.Color.green()))
+            
+            await interaction.response.send_message(view=layout_ren, ephemeral=True)
         except Exception:
             await interaction.response.send_message("❌ Erro ao renomear.", ephemeral=True)
 
