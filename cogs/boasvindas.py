@@ -23,9 +23,10 @@ class EntradaLayout(discord.ui.LayoutView):
             ),
             discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
             discord.ui.TextDisplay(
-                "🐉 " + member.mention + " | Um novo espírito chegou ao santuário!\n"
-                "Agora somos **" + str(count) + "** membros protegidos pelo dragão.\n\n"
-                "🕍 Explore os canais e sinta-se em casa entre dragões, mistérios e boas conversas.\n"
+                "🌞  |▸**Entrada › Bem vindo(a) › Clã de Ondrakos**\n\n"
+                f"{member.mention} 🐉 | Um novo espírito chegou ao santuário!\n"
+                f"Agora somos **{count}** membros protegidos pelo dragão.\n\n"
+                "🕍 ⧽Explore os canais e sinta-se em casa entre dragões, mistérios e boas conversas.\n"
                 "Que sua presença traga boas energias ao clã."
             ),
             accent_color=ONDRAKOS_COLOR,
@@ -44,11 +45,11 @@ class SaidaLayout(discord.ui.LayoutView):
             ),
             discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
             discord.ui.TextDisplay(
-                "🌙 Saída - Adeus\n\n"
-                "🌫️ Um espírito deixou o santuário…\n\n"
-                + member.mention + " seguiu seu próprio caminho além do portal.\n"
+                "🌙  |▸**Saída › Adeus › Clã de Ondrakos**\n\n"
+                "🌫️ ⧽Um espírito deixou o santuário…\n\n"
+                f"{member.mention} 🐉 seguiu seu próprio caminho além do portal.\n"
                 "Que os ventos do dragão guiem seus passos, onde quer que vá.\n\n"
-                "Agora somos **" + str(count) + "** membros protegidos pelo dragão."
+                f"Agora somos **{count}** membros protegidos pelo dragão."
             ),
             accent_color=ONDRAKOS_COLOR,
         )
