@@ -78,11 +78,11 @@ class TicketFechadoDMLayout(discord.ui.LayoutView):
         # 2) Container da Avaliação
         if nota is None:
             options = [
-                discord.SelectOption(label="⭐ 1 — Péssimo",    value="1", emoji="⭐"),
-                discord.SelectOption(label="⭐⭐ 2 — Ruim",      value="2", emoji="⭐"),
-                discord.SelectOption(label="⭐⭐⭐ 3 — Regular",  value="3", emoji="⭐"),
-                discord.SelectOption(label="⭐⭐⭐⭐ 4 — Bom",     value="4", emoji="⭐"),
-                discord.SelectOption(label="⭐⭐⭐⭐⭐ 5 — Ótimo!", value="5", emoji="⭐"),
+                discord.SelectOption(label="⭐ 1 - Péssimo",    value="1", emoji="⭐"),
+                discord.SelectOption(label="⭐⭐ 2 - Ruim",      value="2", emoji="⭐"),
+                discord.SelectOption(label="⭐⭐⭐ 3 - Regular",  value="3", emoji="⭐"),
+                discord.SelectOption(label="⭐⭐⭐⭐ 4 - Bom",     value="4", emoji="⭐"),
+                discord.SelectOption(label="⭐⭐⭐⭐⭐ 5 - Ótimo!", value="5", emoji="⭐"),
             ]
             select = discord.ui.Select(
                 placeholder="Selecione de 1 a 5 estrelas...",
@@ -97,8 +97,36 @@ class TicketFechadoDMLayout(discord.ui.LayoutView):
                 discord.ui.ActionRow(select)
             ]
         else:
-            estrelas = "⭐" * nota
-            texto_resp = f"**Obrigado pela avaliação!**\nVocê avaliou o atendimento com **{estrelas}** ({nota}/5).\nSua opinião nos ajuda a melhorar! 🐉\n\n-# © Ondrakos · 水の竜"
+            if nota == 5:
+                texto_resp = (
+                    "⭐⭐⭐⭐⭐ |▸**5 Estrelas › Avaliação › Clã de Ondrakos**\n\n"
+                    "🐉 ⧽*“Seu reconhecimento aquece minhas escamas como fogo sagrado. Que Ondrakos guarde sua confiança.”*\n\n"
+                    "-# © Ondrakos · 水の竜"
+                )
+            elif nota == 4:
+                texto_resp = (
+                    "⭐⭐⭐⭐ |▸**4 Estrelas › Avaliação › Clã de Ondrakos**\n\n"
+                    "🐲 ⧽*“Sua avaliação foi recebida com honra. Ainda há ventos a melhorar, mas o santuário agradece seu retorno.”*\n\n"
+                    "-# © Ondrakos · 水の竜"
+                )
+            elif nota == 3:
+                texto_resp = (
+                    "⭐⭐⭐ |▸**3 Estrelas › Avaliação › Clã de Ondrakos**\n\n"
+                    "🌙 ⧽*“Nem toda chama arde perfeita. Sua voz foi ouvida, e os guardiões aprenderão com ela.”*\n\n"
+                    "-# © Ondrakos · 水の竜"
+                )
+            elif nota == 2:
+                texto_resp = (
+                    "⭐⭐ |▸**2 Estrelas › Avaliação › Clã de Ondrakos**\n\n"
+                    "🕯️ ⧽*“O eco de sua insatisfação chegou até as profundezas do santuário. Os guardiões irão refletir sobre este chamado.”*\n\n"
+                    "-# © Ondrakos · 水の竜"
+                )
+            else:
+                texto_resp = (
+                    "⭐ |▸**1 Estrela › Avaliação › Clã de Ondrakos**\n\n"
+                    "🔥 ⧽*“Seu descontentamento foi sentido como cinzas sobre o altar. Que esta falha seja lembrada para que o clã possa melhorar.”*\n\n"
+                    "-# © Ondrakos · 水の竜"
+                )
             itens_ava = [discord.ui.TextDisplay(texto_resp)]
             
         self.add_item(discord.ui.Container(*itens_ava, accent_color=DORORO_COLOR))
@@ -675,6 +703,40 @@ class ReabrirTicketButton(discord.ui.Button):
             await interaction.message.edit(attachments=arquivos, view=view)
         else:
             await interaction.message.edit(view=view)
+
+        if autor_id:
+            try:
+                import random
+                frases_abertura = [
+                    "🐲 ⧽*“As portas do santuário se abriram. Aguarde, pois um guardião virá atender seu chamado.”*",
+                    "🔥 ⧽*“O rugido foi ouvido. Seu ticket está aberto, e a equipe logo despertará para atendê-lo.”*",
+                    "🌙 ⧽*“A chama do seu chamado foi acesa. Em breve, um guardião responderá ao seu ticket.”*",
+                    "⛩️ ⧽*“Seu pedido atravessou os portões de Ondrakos. Aguarde em silêncio, os guardiões estão a caminho.”*"
+                ]
+                mensagem_sorteada = random.choice(frases_abertura)
+                
+                autor_obj = await bot.fetch_user(autor_id)
+                texto_dm_v2 = (
+                    "🎟️ |▸**Ticket Reaberto › Clã de Ondrakos**\n\n"
+                    f"{mensagem_sorteada}\n\n"
+                    f"📌 ⧽**Canal:** {canal.mention}\n\n"
+                    "-# © Ondrakos · 水の竜"
+                )
+                dm_layout = discord.ui.LayoutView()
+                dm_layout.add_item(discord.ui.Container(discord.ui.TextDisplay(texto_dm_v2), accent_color=DORORO_COLOR))
+                
+                await autor_obj.send(view=dm_layout)
+            except discord.Forbidden:
+                log_canal = interaction.guild.get_channel(config.LOGS_CANAL_ID())
+                if log_canal:
+                    embed_log_dm = discord.Embed(
+                        title="⚠️ Aviso: DM Fechada",
+                        description=f"Não foi possível avisar o membro <@{autor_id}> sobre a reabertura do ticket {canal.mention} no privado porque sua DM está trancada.",
+                        color=discord.Color.orange()
+                    )
+                    await log_canal.send(embed=embed_log_dm)
+            except Exception as e:
+                print(f"[Tickets] Erro ao enviar DM de reabertura: {e}")
 
 
 class DeletarTicketButton(discord.ui.Button):
