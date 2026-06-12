@@ -2768,7 +2768,11 @@ async def varredura_v2(ctx):
                                 relatorio.append(f"[ERRO V2] Msg {m.id} em #{canal.name} -> Falha ao salvar: {str(e)}")
                                 
                             if imagem_status == "Nao":
-                                debug_info = f"   [DEBUG V2 IMAGEM] url_img_v2={url_img_v2} | m.attachments={[{'f':a.filename, 'c':a.content_type, 'u':a.url} for a in m.attachments]} | raw_data_att={[{'f':a.get('filename'), 'c':a.get('content_type'), 'u':a.get('url')} for a in raw_data.get('attachments', [])]}"
+                                import json
+                                try:
+                                    comps_dump = json.dumps(raw_data.get('components', []))[:800] # Mostrar primeiros 800 chars
+                                except: comps_dump = "Erro serializar"
+                                debug_info = f"   [DEBUG V2] att={len(m.attachments)} | raw_att={len(raw_data.get('attachments', []))} | COMPS: {comps_dump}"
                                 relatorio.append(debug_info)
             except Exception:
                 pass # Sem permissão para ler o histórico
