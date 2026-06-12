@@ -121,6 +121,24 @@ async def get_channels(request):
         traceback.print_exc()
         return web.json_response({"status": "error", "message": str(e)}, status=500)
 
+async def get_emojis(request):
+    bot = request.app['bot']
+    try:
+        emojis_data = []
+        for guild in bot.guilds:
+            for emoji in guild.emojis:
+                emojis_data.append({
+                    "id": str(emoji.id),
+                    "name": emoji.name,
+                    "url": str(emoji.url),
+                    "animated": emoji.animated
+                })
+        return web.json_response({"status": "success", "emojis": emojis_data})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return web.json_response({"status": "error", "message": str(e)}, status=500)
+
 # ── Rota raiz simples para teste ──
 async def index(request):
     return web.Response(text="API do Ondrakos V2 está online! 🐉")
@@ -144,12 +162,14 @@ async def start_server(bot):
     route_index = app.router.add_get('/', index)
     route_layouts = app.router.add_get('/api/layouts', get_layouts)
     route_channels = app.router.add_get('/api/channels', get_channels)
+    route_emojis = app.router.add_get('/api/emojis', get_emojis)
     
     # Rota de envio
     route_send = app.router.add_post('/api/send_layout', send_layout)
     cors.add(route_index)
     cors.add(route_layouts)
     cors.add(route_channels)
+    cors.add(route_emojis)
     cors.add(route_send)
     
     runner = web.AppRunner(app)
