@@ -642,8 +642,15 @@ class AnuncioModal(Modal):
                 return
 
             # Montar layout V2
-            texto_anuncio = f"**{dados['titulo']}**\n\n{dados['mensagem']}\n\n-# © Ondrakos · 水の竜"
-            itens_anuncio = [discord.ui.TextDisplay(texto_anuncio)]
+            itens_anuncio = []
+            
+            # 1. Imagem principal sera adicionada no inicio depois de baixada
+            
+            # 2. Conteudo de texto
+            texto_principal = f"**{dados['titulo']}**\n\n{dados['mensagem']}"
+            itens_anuncio.append(discord.ui.TextDisplay(texto_principal))
+            
+            # 3. Separador e Footer serao adicionados antes de renderizar
 
             # Montar menções
             texto_mencao, content_ping = montar_texto_mencao(dados["mencoes"], guild, dados.get("frase_convocacao", ""))
@@ -710,7 +717,19 @@ class AnuncioModal(Modal):
                     break
 
             if primeira_imagem:
+                itens_anuncio.insert(0, discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
                 itens_anuncio.insert(0, discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://" + primeira_imagem)))
+                
+            # 3. Separador (sep_anuncio)
+            import os
+            if dados.get("divisores", True) and os.path.exists("sep_anuncio.png"):
+                arquivos.append(discord.File("sep_anuncio.png", filename="sep_anuncio_bot.png"))
+                itens_anuncio.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+                itens_anuncio.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://sep_anuncio_bot.png")))
+                
+            # 4. Footer
+            itens_anuncio.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+            itens_anuncio.append(discord.ui.TextDisplay("-# © Ondrakos · 水の竜"))
 
             # Dividir em lotes de 10 (limite do Discord)
             def lotes(lista, n=10):
@@ -770,11 +789,7 @@ class AnuncioModal(Modal):
             else:
                 primeiro_lote = arquivos[:10] if arquivos else []
                 resto_txt = arquivos[10:]
-                # Separador antes
-                if dados.get("divisores", True):
-                    sep_antes = _sep_file()
-                    if sep_antes:
-                        await canal_destino.send(file=sep_antes)
+                
                 try:
                     msg_anuncio = await canal_destino.send(
                         content=content,
@@ -792,16 +807,12 @@ class AnuncioModal(Modal):
                     else:
                         await msg.reply(f"❌ Erro ao enviar: {e.text or str(e)}", delete_after=10)
                         return
+                
                 for lote in [resto_txt[i:i+10] for i in range(0, len(resto_txt), 10)]:
                     try:
                         await canal_destino.send(files=lote)
                     except discord.HTTPException:
                         pass
-                # Separador depois
-                if dados.get("divisores", True):
-                    sep_dep = _sep_file()
-                    if sep_dep:
-                        await canal_destino.send(file=sep_dep)
 
             if eh_evento:
                 anuncio_presencas[msg_anuncio.id] = {"confirmados": {}, "ausentes": {}}
@@ -1060,6 +1071,9 @@ class PostagemDestinoView(discord.ui.LayoutView):
 
     async def categoria_selecionada(self, interaction: discord.Interaction):
         cat_id = int(self.select_cat.values[0])
+        self.select_cat.disabled = True
+        for opt in self.select_cat.options:
+            if opt.value == str(cat_id): opt.default = True
         categoria = interaction.guild.get_channel(cat_id)
         
         foruns = [c for c in categoria.channels if isinstance(c, discord.ForumChannel)][:25]
@@ -1134,6 +1148,9 @@ class AnuncioDestinoView(discord.ui.LayoutView):
 
     async def categoria_selecionada(self, interaction: discord.Interaction):
         cat_id = int(self.select_cat.values[0])
+        self.select_cat.disabled = True
+        for opt in self.select_cat.options:
+            if opt.value == str(cat_id): opt.default = True
         categoria = interaction.guild.get_channel(cat_id)
         
         # Filtra canais de texto ou fórum
@@ -1162,6 +1179,9 @@ class AnuncioDestinoView(discord.ui.LayoutView):
 
     async def canal_selecionado(self, interaction: discord.Interaction):
         canal_id = int(self.select_canal.values[0])
+        self.select_canal.disabled = True
+        for opt in self.select_canal.options:
+            if opt.value == str(canal_id): opt.default = True
         canal = interaction.guild.get_channel(canal_id)
         
         if isinstance(canal, discord.ForumChannel):
