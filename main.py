@@ -1725,6 +1725,30 @@ class RemandarMensagemModal(Modal):
         desc_final = dados["descricao"].strip()
         footer_final = dados["footer"].strip()
 
+        # Extrair dados da mensagem original para herdar V2
+        teve_separador = False
+        try:
+            raw_data = await bot.http.get_message(target_msg.channel.id, target_msg.id)
+            for c in raw_data.get('components', []):
+                def find_img_sep(obj):
+                    nonlocal url_img_v2, teve_separador
+                    if isinstance(obj, dict):
+                        if obj.get('type') == 13: # MediaGallery
+                            for it in obj.get('items', []):
+                                if 'url' in it:
+                                    if 'sep' in it['url'].lower():
+                                        teve_separador = True
+                                    elif url_img_v2 is None:
+                                        url_img_v2 = it['url']
+                        for k, v in obj.items():
+                            find_img_sep(v)
+                    elif isinstance(obj, list):
+                        for i in obj:
+                            find_img_sep(i)
+                find_img_sep(c)
+        except Exception:
+            pass
+
         if target_msg.embeds:
             emb = target_msg.embeds[0]
             if not titulo_final and emb.title:
@@ -1733,7 +1757,7 @@ class RemandarMensagemModal(Modal):
                 desc_final = emb.description
             if not footer_final and emb.footer and emb.footer.text:
                 footer_final = emb.footer.text
-            if emb.image and emb.image.url:
+            if emb.image and emb.image.url and url_img_v2 is None:
                 url_img_v2 = emb.image.url
 
         if titulo_final:
@@ -1868,11 +1892,7 @@ class RemandarMensagemModal(Modal):
         arquivos_enviar = []
         import os
         
-        if sep_antes_msg and os.path.exists("sep_anuncio.png"):
-            arquivos_enviar.append(discord.File("sep_anuncio.png", filename="sep_antes.png"))
-            itens_v2.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://sep_antes.png")))
-            itens_v2.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
-
+        # Montar um layout V2 bonito e padronizado
         if nova_imagem and nome_img:
             arquivos_enviar.append(nova_imagem)
             itens_v2.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://" + nome_img)))
@@ -1881,7 +1901,8 @@ class RemandarMensagemModal(Modal):
         if texto_v2:
             itens_v2.append(discord.ui.TextDisplay(texto_v2))
             
-        if sep_depois_msg and os.path.exists("sep_anuncio.png"):
+        # Adicionar o separador e o footer se necessário
+        if (sep_depois_msg or teve_separador) and os.path.exists("sep_anuncio.png"):
             itens_v2.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
             arquivos_enviar.append(discord.File("sep_anuncio.png", filename="sep_depois.png"))
             itens_v2.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://sep_depois.png")))
@@ -1918,7 +1939,7 @@ class RemandarMensagemModal(Modal):
                     self.msg_antigas = msg_antigas
 
                 @discord.ui.button(label="Confirmar e Apagar Antiga", style=discord.ButtonStyle.success, emoji="✅")
-                async def confirmar(self, inter: discord.Interaction):
+                async def confirmar(self, inter: discord.Interaction, button: discord.ui.Button):
                     for m in self.msg_antigas:
                         if m:
                             try:
@@ -1930,7 +1951,7 @@ class RemandarMensagemModal(Modal):
                     await inter.response.edit_message(content="✅ **Nova postagem confirmada e postagem antiga apagada!**", view=self)
 
                 @discord.ui.button(label="Cancelar e Apagar Nova", style=discord.ButtonStyle.danger, emoji="🗑️")
-                async def cancelar(self, inter: discord.Interaction):
+                async def cancelar(self, inter: discord.Interaction, button: discord.ui.Button):
                     try:
                         bot.mensagens_ignorar_delete.add(self.msg_nova.id)
                         await self.msg_nova.delete()
