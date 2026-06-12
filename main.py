@@ -2728,13 +2728,25 @@ async def varredura_v2(ctx):
                             # Imagem
                             img_bytes = None
                             img_nome = None
-                            if url_img_v2:
+                            
+                            # Tentar extrair do URL se for um link web
+                            if url_img_v2 and url_img_v2.startswith('http'):
                                 img_bytes = await fetch_image(url_img_v2)
                                 if img_bytes:
                                     parsed = urllib.parse.urlparse(url_img_v2)
                                     ext = os.path.splitext(parsed.path)[1] or ".png"
                                     img_nome = f"imagem_v2{ext}"
                                     imagem_status = "Sim"
+                                    
+                            # Se não achou (ou se for attachment://), procurar nos attachments da mensagem!
+                            if img_bytes is None and m.attachments:
+                                for att in m.attachments:
+                                    if 'sep' not in att.filename.lower() and att.content_type and att.content_type.startswith('image'):
+                                        img_bytes = await fetch_image(att.url)
+                                        if img_bytes:
+                                            img_nome = att.filename
+                                            imagem_status = "Sim"
+                                            break
                             
                             # Salva no DB
                             try:
