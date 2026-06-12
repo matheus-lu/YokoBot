@@ -34,6 +34,7 @@ class Database:
             # Colunas de imagem para lembretes criados antes dessa versão
             ("calendario_lembretes", "imagem",       "BLOB"),
             ("calendario_lembretes", "imagem_nome",  "TEXT"),
+            ("mensagens_layout", "reacoes", "TEXT"),
         ]
         for tabela, coluna, tipo in migracoes:
             try:
@@ -111,7 +112,8 @@ class Database:
                 titulo      TEXT,
                 descricao   TEXT,
                 footer      TEXT,
-                estilo      TEXT DEFAULT 'padrao'
+                estilo      TEXT DEFAULT 'padrao',
+                reacoes     TEXT
             );
         """)
         await self.db.commit()
@@ -467,13 +469,13 @@ class Database:
 
 
     # ── Layouts de Mensagens (V2) ──────────────────────────
-    async def salvar_layout(self, msg_id: int, canal_id: int, titulo: str, descricao: str, footer: str, estilo: str):
+    async def salvar_layout(self, msg_id: int, canal_id: int, titulo: str, descricao: str, footer: str, estilo: str, reacoes: str = None):
         await self.db.execute(
-            """INSERT INTO mensagens_layout (msg_id, canal_id, titulo, descricao, footer, estilo)
-               VALUES (?, ?, ?, ?, ?, ?)
+            """INSERT INTO mensagens_layout (msg_id, canal_id, titulo, descricao, footer, estilo, reacoes)
+               VALUES (?, ?, ?, ?, ?, ?, ?)
                ON CONFLICT(msg_id) DO UPDATE SET
-               titulo=excluded.titulo, descricao=excluded.descricao, footer=excluded.footer, estilo=excluded.estilo""",
-            (msg_id, canal_id, titulo, descricao, footer, estilo)
+               titulo=excluded.titulo, descricao=excluded.descricao, footer=excluded.footer, estilo=excluded.estilo, reacoes=COALESCE(excluded.reacoes, mensagens_layout.reacoes)""",
+            (msg_id, canal_id, titulo, descricao, footer, estilo, reacoes)
         )
         await self.db.commit()
 

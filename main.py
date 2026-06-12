@@ -2519,8 +2519,6 @@ async def repostar_topico(interaction: discord.Interaction):
     await interaction.followup.send(f"✅ Tópico clonado para V2 com sucesso! [Ver novo tópico]({novo_topico.message.jump_url})")
 
 
-bot.run(config.TOKEN)
-
 
 @bot.command()
 @commands.is_owner()
@@ -2529,8 +2527,10 @@ async def varredura_v2(ctx):
     msg_status = await ctx.send("Iniciando varredura V2 em canais, threads e fóruns...")
     
     canais_ignorados = [config.ADM_LOG_CANAL_ID(), config.MUSICA_CANAL_ID()]
-    
     canais_alvo = []
+    
+    import json
+    import re
     
     # Text channels
     for c in ctx.guild.text_channels:
@@ -2552,71 +2552,92 @@ async def varredura_v2(ctx):
             for t in f.threads:
                 canais_alvo.append(t)
                 
-    # Varredura
     total_resgatado = 0
     
     for canal in canais_alvo:
         try:
             async for m in canal.history(limit=500):
-                if m.author.id == bot.user.id and m.components:
-                    # Tem components! Vamos verificar se é Layout V2 e tentar extrair para o banco
-                    raw_data = await bot.http.get_message(canal.id, m.id)
-                    comps = raw_data.get('components', [])
-                    if not comps: continue
+                if m.author.id == bot.user.id:
+                    reacoes = json.dumps([str(r.emoji) for r in m.reactions]) if m.reactions else "[]"
                     
-                    estilo_detectado = "padrao"
-                    titulo = ""
-                    footer = ""
-                    
-                    # Detectar estilo
-                    for c in comps[:2]:
-                        if c.get('type') == 14 and 'Ondrakos' in str(c.get('text', '')):
-                            estilo_detectado = "invertido"
-                            break
+                    # ── V1 EMBEDS ──
+                    if m.embeds and not m.components:
+                        emb = m.embeds[0]
+                        titulo = emb.title or ""
+                        descricao = emb.description or ""
+                        footer = emb.footer.text if emb.footer else ""
+                        try:
+                            await bot.db.salvar_layout(m.id, canal.id, titulo[:256], descricao, footer[:2048], "padrao", reacoes)
+                            total_resgatado += 1
+                        except Exception:
+                            pass
                             
-                    # Extrator de fallback (velho estilo) para montar o texto
-                    def extrair_v2_local(obj):
-                        t = ""
-                        if isinstance(obj, dict):
-                            if obj.get('type') in [2, 3, 5, 6, 7, 8]:
-                                pass
-                            else:
-                                for key in ['text', 'content', 'value', 'description']:
-                                    if key in obj and isinstance(obj[key], str) and len(obj[key].strip()) > 0:
-                                        t += obj[key] + "\n"
-                            for k, v in obj.items():
-                                t += extrair_v2_local(v)
-                        elif isinstance(obj, list):
-                            for i in obj:
-                                t += extrair_v2_local(i)
-                        return t
+                    # ── V2 LAYOUT VIEWS ──
+                    elif m.components:
+                        raw_data = await bot.http.get_message(canal.id, m.id)
+                        comps = raw_data.get('components', [])
+                        if not comps: continue
                         
-                    texto = extrair_v2_local(raw_data).strip()
-                    
-                    if not texto:
-                        continue
+                        estilo_detectado = "padrao"
+                        titulo = ""
+                        footer = ""
                         
-                    linhas = [L.strip() for L in texto.split('\n') if L.strip()]
-                    if linhas and linhas[0].startswith("**") and linhas[0].endswith("**"):
-                        titulo = linhas[0].strip("*")
-                        linhas = linhas[1:]
-                    elif linhas and linhas[0].startswith("**"):
-                        titulo = linhas[0].replace("**", "")
-                        linhas = linhas[1:]
+                        # Detectar estilo
+                        for c in comps[:2]:
+                            if c.get('type') == 14 and 'Ondrakos' in str(c.get('text', '')):
+                                estilo_detectado = "invertido"
+                                break
+                                
+                        # Extrator de fallback
+                        def extrair_v2_local(obj):
+                            t = ""
+                            if isinstance(obj, dict):
+                                if obj.get('type') in [2, 3, 5, 6, 7, 8]:
+                                    pass
+                                else:
+                                    for key in ['text', 'content', 'value', 'description']:
+                                        if key in obj and isinstance(obj[key], str) and len(obj[key].strip()) > 0:
+                                            t += obj[key] + "\n"
+                                for k, v in obj.items():
+                                    t += extrair_v2_local(v)
+                            elif isinstance(obj, list):
+                                for i in obj:
+                                    t += extrair_v2_local(i)
+                            return t
+                            
+                        texto = extrair_v2_local(raw_data).strip()
+                        if not texto: continue
+                            
+                        linhas = [L.strip() for L in texto.split('\n') if L.strip()]
                         
-                    if linhas and 'Ondrakos' in linhas[-1]:
-                        footer = linhas[-1].replace("-# ", "").strip()
-                        linhas = linhas[:-1]
+                        # Melhoria no Titulo: pegar a linha que contém ** (incluindo emojis antes)
+                        for i, linha in enumerate(linhas):
+                            if "**" in linha:
+                                titulo = linha.replace("**", "").strip()
+                                linhas.pop(i)
+                                break
+                                
+                        # Melhoria no Footer
+                        for i in range(len(linhas)-1, -1, -1):
+                            if '-#' in linhas[i] or 'Ondrakos' in linhas[i]:
+                                footer = linhas[i].replace("-# ", "").strip()
+                                linhas.pop(i)
+                                break
+                            
+                        descricao = "\n".join(linhas)[:4000]
                         
-                    descricao = "\n".join(linhas)[:4000]
-                    
-                    # Salva no DB
-                    try:
-                        await bot.db.salvar_layout(m.id, canal.id, titulo[:256], descricao, footer[:2048], estilo_detectado)
-                        total_resgatado += 1
-                    except Exception:
-                        pass
+                        # Salva no DB
+                        try:
+                            await bot.db.salvar_layout(m.id, canal.id, titulo[:256], descricao, footer[:2048], estilo_detectado, reacoes)
+                            total_resgatado += 1
+                        except Exception:
+                            pass
         except Exception:
-            pass # Sem permissão para ler o histórico, ou canal deletado
+            pass # Sem permissão para ler o histórico
             
-    await msg_status.edit(content=f"✅ Varredura concluída! {total_resgatado} mensagens com Layout V2 resgatadas e salvas no banco de dados com sucesso.")
+    await msg_status.edit(content=f"✅ Varredura concluída! {total_resgatado} mensagens resgatadas (V1 Embeds e V2 Layouts) e salvas no banco de dados.")
+
+# --- FIM COMANDO VARREDURA ---
+
+
+bot.run(config.TOKEN)
