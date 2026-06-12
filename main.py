@@ -2657,8 +2657,8 @@ async def varredura_v2(ctx):
                                 await bot.db.salvar_layout(m.id, canal.id, titulo[:256], descricao, footer[:2048], "padrao", reacoes, img_bytes, img_nome, tipo_msg)
                                 total_resgatado += 1
                                 relatorio.append(f"[V1] Msg {m.id} em #{canal.name} -> Titulo: {titulo_status}, Imagem: {imagem_status}, Texto: {texto_status}, Footer: {footer_status}")
-                            except Exception:
-                                pass
+                            except Exception as e:
+                                relatorio.append(f"[ERRO V1] Msg {m.id} em #{canal.name} -> Falha ao salvar: {str(e)}")
                                 
                         # ── V2 LAYOUT VIEWS ──
                         elif m.components:
@@ -2741,8 +2741,8 @@ async def varredura_v2(ctx):
                                 await bot.db.salvar_layout(m.id, canal.id, titulo[:256], descricao, footer[:2048], estilo_detectado, reacoes, img_bytes, img_nome, tipo_msg)
                                 total_resgatado += 1
                                 relatorio.append(f"[V2] Msg {m.id} em #{canal.name} -> Titulo: {titulo_status}, Imagem: {imagem_status}, Texto: {texto_status}, Footer: {footer_status}")
-                            except Exception:
-                                pass
+                            except Exception as e:
+                                relatorio.append(f"[ERRO V2] Msg {m.id} em #{canal.name} -> Falha ao salvar: {str(e)}")
             except Exception:
                 pass # Sem permissão para ler o histórico
                 
