@@ -224,6 +224,23 @@ class XPCog(commands.Cog):
     @tasks.loop(time=datetime.time(hour=0, minute=0, tzinfo=datetime.timezone(datetime.timedelta(hours=-3))))
     async def atualizar_ranking_diario(self):
         await self._enviar_podio()
+        await self._limpar_chats_voz()
+
+    async def _limpar_chats_voz(self):
+        for guild in self.bot.guilds:
+            for canal in guild.voice_channels:
+                try:
+                    def check(m):
+                        if m.author.id == self.bot.user.id and m.components:
+                            for comp in m.components:
+                                if getattr(comp, "type", None) == discord.ComponentType.action_row:
+                                    for child in getattr(comp, "children", []):
+                                        if getattr(child, "custom_id", "") in ["aviso_chat_aceitar", "aviso_chat_recusar"]:
+                                            return False
+                        return True
+                    await canal.purge(limit=100, check=check)
+                except Exception:
+                    pass
 
     async def _enviar_podio(self):
         for guild in self.bot.guilds:

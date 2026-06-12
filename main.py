@@ -1533,7 +1533,7 @@ class EditarMensagemModal(Modal):
             "msg_id": self.msg_id,
             "titulo": self.titulo_field.value,
             "descricao": self.descricao_field.value,
-            "footer": self.footer_field.value,
+            "footer": self.footer_field.value or "© Ondrakos · 水の竜",
         }
 
         texto = (
@@ -1762,7 +1762,7 @@ class RemandarMensagemModal(Modal):
             "msg_id":   self.msg_id,
             "titulo":   self.titulo_field.value,
             "descricao":self.descricao_field.value,
-            "footer":   self.footer_field.value,
+            "footer":   self.footer_field.value or "© Ondrakos · 水の竜",
         }
 
         texto = (
@@ -2909,7 +2909,7 @@ class AvisoChatLayout(discord.ui.LayoutView):
             itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
             
         itens.extend([
-            discord.ui.TextDisplay(f"**{titulo}**"),
+            discord.ui.TextDisplay(f"**{titulo}**" if not titulo.startswith("**") else titulo),
             discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
             discord.ui.TextDisplay(mensagem),
             discord.ui.Separator(spacing=discord.SeparatorSpacing.small)
@@ -2920,7 +2920,7 @@ class AvisoChatLayout(discord.ui.LayoutView):
             itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
             
         if footer:
-            itens.append(discord.ui.TextDisplay(f"-# {footer}"))
+            itens.append(discord.ui.TextDisplay(f"-# {footer}" if not footer.startswith("-#") else footer))
             
         row = discord.ui.ActionRow(AvisoChatButton(is_accept=True), AvisoChatButton(is_accept=False))
         self.add_item(discord.ui.Container(*itens, row, accent_color=DORORO_COLOR.value))
@@ -2979,7 +2979,7 @@ class AvisoChatModal(Modal):
         view = AvisoChatLayout(
             titulo=self.titulo.value,
             mensagem=self.mensagem.value,
-            footer=self.footer.value or "Aviso de Chat",
+            footer=self.footer.value or "© Ondrakos · 水の竜",
             imagem_bytes=imagem_bytes,
             filename=imagem_filename,
             sep_bytes=sep_bytes,
@@ -2991,8 +2991,21 @@ class AvisoChatModal(Modal):
         if sep_bytes: arquivos.append(discord.File(io.BytesIO(sep_bytes), filename=sep_filename))
 
         try:
-            if arquivos: await self.canal.send(files=arquivos, view=view)
-            else: await self.canal.send(view=view)
+            if arquivos: msg_enviada = await self.canal.send(files=arquivos, view=view)
+            else: msg_enviada = await self.canal.send(view=view)
+            
+            await interaction.client.db.salvar_layout(
+                msg_id=msg_enviada.id,
+                canal_id=self.canal.id,
+                titulo=self.titulo.value,
+                descricao=self.mensagem.value,
+                footer=self.footer.value or "© Ondrakos · 水の竜",
+                estilo="padrao",
+                reacoes="[]",
+                imagem_bytes=imagem_bytes,
+                imagem_nome=imagem_filename,
+                tipo="aviso-chat"
+            )
             await interaction.followup.send(f"✅ Aviso enviado com sucesso no canal {self.canal.mention}!", ephemeral=True)
         except Exception as e:
             await interaction.followup.send(f"❌ Erro ao enviar aviso: {e}", ephemeral=True)
