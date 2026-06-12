@@ -2682,11 +2682,20 @@ async def varredura_v2(ctx):
                                 nonlocal url_img_v2
                                 t = ""
                                 if isinstance(obj, dict):
-                                    if obj.get('type') == 13: # MediaGallery
+                                    if 'media' in obj and isinstance(obj['media'], dict):
+                                        m_obj = obj['media']
+                                        if 'url' in m_obj and 'sep' not in str(m_obj['url']).lower():
+                                            if url_img_v2 is None:
+                                                url_img_v2 = m_obj['url']
+                                                
+                                    if obj.get('type') == 12: # MediaGallery
                                         for it in obj.get('items', []):
-                                            if 'url' in it and 'sep' not in it['url'].lower():
-                                                if url_img_v2 is None:
-                                                    url_img_v2 = it['url']
+                                            if 'media' in it and 'url' in it['media']:
+                                                u = it['media']['url']
+                                                if 'sep' not in u.lower():
+                                                    if url_img_v2 is None:
+                                                        url_img_v2 = u
+                                                        
                                     if obj.get('type') in [2, 3, 5, 6, 7, 8]:
                                         pass
                                     else:
