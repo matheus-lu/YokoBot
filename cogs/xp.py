@@ -233,29 +233,41 @@ class XPCog(commands.Cog):
             if not top:
                 continue
 
+            titulos = [
+                "O Espírito Mais Devoto",
+                "Vigia das Chamas Sagradas",
+                "Andarilho das Sombras"
+            ]
             medalhas = ["🥇", "🥈", "🥉"]
             linhas = []
+            id_primeiro = None
+            
             for i, r in enumerate(top):
                 try:
                     member = await guild.fetch_member(r["user_id"])
                     nome = member.display_name
                 except Exception:
-                    nome = "Usuário #" + str(r["user_id"])
-                linhas.append(
-                    medalhas[i] + " " + nome
-                    + " — Nível **" + str(r["level"])
-                    + "** | " + str(r["xp"]) + " XP"
-                )
+                    nome = f"Usuário #{r['user_id']}"
+                
+                if i == 0:
+                    id_primeiro = r["user_id"]
+                
+                if i < len(titulos):
+                    linhas.append(f"{medalhas[i]} ⧽**{nome}** › {titulos[i]}")
+                else:
+                    linhas.append(f"**{i+1}.** ⧽**{nome}**")
+
+            texto_podio = "⛩️  │▸O dragão observou... e escolheu seus campeões de hoje.\n\n"
+            texto_podio += "\n".join(linhas)
+            if id_primeiro:
+                texto_podio += f"\n\n🐉 ⧽Parabéns, <@{id_primeiro}>! O dragão inclina a cabeça em sua honra. Você foi o mais presente hoje!"
 
             canal = self.bot.get_channel(config.CONTADOR_MEMBROS_CANAL_ID())
             if canal:
-                embed = discord.Embed(
-                    title="🏆 Pódio do Dia",
-                    description="\n".join(linhas),
-                    color=discord.Color.dark_blue(),
-                )
-                embed.set_footer(text="© Ondrakos · 水の竜 | Ranking atualizado à meia-noite BRT")
-                await canal.send(embed=embed)
+                DORORO_COLOR = discord.Color.from_rgb(31, 139, 76)
+                view = discord.ui.LayoutView()
+                view.add_item(discord.ui.Container(discord.ui.TextDisplay(texto_podio), accent_color=DORORO_COLOR))
+                await canal.send(view=view)
 
     @atualizar_ranking_diario.before_loop
     async def before_ranking(self):
