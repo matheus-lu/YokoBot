@@ -643,6 +643,80 @@ class AnuncioModal(Modal):
                 await msg.reply("❌ Canal não encontrado!", delete_after=5)
                 return
 
+
+            # Montar menções
+            texto_mencao, content_ping = montar_texto_mencao(dados["mencoes"], guild, dados.get("frase_convocacao", ""))
+
+            content = texto_mencao if texto_mencao else None
+
+            tem_everyone = dados["mencoes"] and ("@everyone" in dados["mencoes"] or "@here" in dados["mencoes"])
+            allowed = discord.AllowedMentions(
+                everyone=tem_everyone,
+                users=True,
+                roles=True,
+            )
+
+            # Coletar todos os arquivos anexados (qualquer tipo, até 10 por vez)
+            arquivos = []
+            primeira_imagem = None
+            msg_atual = msg
+
+            async def coletar_arquivos(msg_ref):
+                nonlocal primeira_imagem
+                _arquivos = []
+                if msg_ref.content.strip().lower() == "pular" or not msg_ref.attachments:
+                    return _arquivos
+                for att in msg_ref.attachments:
+                    # Verificar tamanho antes de baixar
+                    if att.size > 9_000_000:
+                        await interaction.followup.send(
+                            f"⚠️ O arquivo **{att.filename}** é muito grande ({att.size // 1024 // 1024}MB). "
+                            "Envie uma versão menor (máx 9MB) ou digite **pular**.",
+                            ephemeral=True
+                        )
+                        return None  # sinaliza que precisa de nova tentativa
+                    try:
+                        dados_bytes = await att.read()
+                        _arquivos.append(discord.File(io.BytesIO(dados_bytes), filename=att.filename))
+                        if primeira_imagem is None and att.content_type and att.content_type.startswith("image"):
+                            primeira_imagem = att.filename
+                    except Exception:
+                        await interaction.followup.send(f"⚠️ Erro ao baixar `{att.filename}`. Pulando.", ephemeral=True)
+                return _arquivos
+
+            # Tentar coletar — se arquivo grande, pedir nova mensagem
+            for _tentativa in range(3):
+                resultado = await coletar_arquivos(msg_atual)
+                if resultado is None:
+                    # Arquivo grande — esperar nova mensagem
+                    try:
+                        msg_atual = await bot.wait_for("message", check=check, timeout=120)
+                        if msg_atual.content.strip().lower() == "cancelar":
+                            try:
+                                bot.mensagens_ignorar_delete.add(msg_atual.id)
+                                await msg_atual.delete()
+                            except Exception:
+                                pass
+                            await interaction.followup.send("❌ Anúncio cancelado.", ephemeral=True)
+                            return
+                        primeira_imagem = None  # resetar para nova tentativa
+                        continue
+                    except asyncio.TimeoutError:
+                        await interaction.followup.send("⏳ Tempo esgotado.", ephemeral=True)
+                        return
+                else:
+                    arquivos = resultado
+                    break
+
+            # Dividir em lotes de 10 (limite do Discord)
+            def lotes(lista, n=10):
+                for i in range(0, len(lista), n):
+                    yield lista[i:i+n]
+
+            # Enviar o anúncio
+            eh_evento = dados.get("evento", False)
+            view_presenca = AnuncioPresencaView() if eh_evento else None
+            
             # Montar layout V2
             itens_anuncio = []
             import os
@@ -664,7 +738,6 @@ class AnuncioModal(Modal):
                     
                 itens_anuncio.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
                 itens_anuncio.append(discord.ui.TextDisplay("-# © Ondrakos · 水の竜"))
-                
             else: # invertido
                 if dados.get("divisores", True) and os.path.exists("sep_anuncio.png"):
                     arquivos.append(discord.File("sep_anuncio.png", filename="sep_anuncio_bot.png"))
@@ -679,16 +752,6 @@ class AnuncioModal(Modal):
                     
                 itens_anuncio.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
                 itens_anuncio.append(discord.ui.TextDisplay("-# © Ondrakos · 水の竜"))
-
-            # Dividir em lotes de 10 (limite do Discord)
-            def lotes(lista, n=10):
-                for i in range(0, len(lista), n):
-                    yield lista[i:i+n]
-
-            # Enviar o anúncio
-            eh_evento = dados.get("evento", False)
-            view_presenca = AnuncioPresencaView() if eh_evento else None
-            
             view_final = discord.ui.LayoutView()
             view_final.add_item(discord.ui.Container(*itens_anuncio, accent_color=DORORO_COLOR))
             if view_presenca:
