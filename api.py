@@ -152,6 +152,49 @@ async def get_emojis(request):
         traceback.print_exc()
         return web.json_response({"status": "error", "message": str(e)}, status=500)
 
+async def bot_action(request):
+    try:
+        data = await request.json()
+        action = data.get('action')
+        bot = request.app['bot']
+        
+        if action == 'varredura_freegames':
+            limite = int(data.get('limite', 50))
+            canal = bot.get_channel(1507724879904903248)
+            if not canal:
+                return web.json_response({"status": "error", "message": "Canal freegames não encontrado!"}, status=400)
+                
+            emojis = [
+                "<:_verificadoverde:1507463200642171142>",
+                "<a:_pixellovegreen:1507139369188855878>",
+                "<a:_sinosfloridos:1507143271263244299>",
+                "<a:_brilha:1508358170844598272>"
+            ]
+            
+            async def background_varredura():
+                count = 0
+                try:
+                    async for msg in canal.history(limit=limite):
+                        for emoji in emojis:
+                            try:
+                                await msg.add_reaction(emoji)
+                            except Exception:
+                                pass
+                        count += 1
+                        import asyncio
+                        await asyncio.sleep(0.5)
+                except Exception as e:
+                    print(f"Erro na varredura bg: {e}")
+            
+            import asyncio
+            asyncio.create_task(background_varredura())
+            return web.json_response({"status": "success", "message": f"A varredura foi iniciada em background para {limite} mensagens."})
+            
+        return web.json_response({"status": "error", "message": "Ação desconhecida."}, status=400)
+    except Exception as e:
+        return web.json_response({"status": "error", "message": str(e)}, status=500)
+
+
 # ── Rota raiz simples para teste ──
 async def index(request):
     return web.Response(text="API do Ondrakos V2 está online! 🐉")
@@ -179,11 +222,13 @@ async def start_server(bot):
     
     # Rota de envio
     route_send = app.router.add_post('/api/send_layout', send_layout)
+    route_action = app.router.add_post('/api/bot_action', bot_action)
     cors.add(route_index)
     cors.add(route_layouts)
     cors.add(route_channels)
     cors.add(route_emojis)
     cors.add(route_send)
+    cors.add(route_action)
     
     runner = web.AppRunner(app)
     await runner.setup()
