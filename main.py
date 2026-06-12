@@ -2629,6 +2629,14 @@ async def repostar_topico(interaction: discord.Interaction):
 
 
 
+@bot.event
+async def on_raw_message_delete(payload: discord.RawMessageDeleteEvent):
+    # Se a mensagem apagada estava no banco de layouts, apaga de lá também.
+    try:
+        await bot.db.deletar_layout(payload.message_id)
+    except Exception as e:
+        print(f"Erro ao deletar layout sincronizado: {e}")
+
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def varredura_v2(ctx):

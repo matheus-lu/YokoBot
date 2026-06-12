@@ -493,6 +493,14 @@ class Database:
         cursor = await self.db.execute("SELECT * FROM mensagens_layout WHERE msg_id=?", (msg_id,))
         return await cursor.fetchone()
 
+    async def deletar_layout(self, msg_id: int):
+        if not self.db: await self.connect()
+        try:
+            await self.db.execute("DELETE FROM mensagens_layout WHERE msg_id = ?", (msg_id,))
+            await self.db.commit()
+        except Exception as e:
+            print(f"[Database] Erro ao deletar layout {msg_id}: {e}")
+
     async def atualizar_reacoes(self, msg_id: int, reacoes_json: str):
         if not self.db: await self.connect()
         try:
