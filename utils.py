@@ -302,15 +302,75 @@ def gerar_imagem_boas_vindas(username, avatar_bytes, entrou=True):
 
 
 def gerar_imagem_log_delete(username, avatar_bytes, conteudo, user_id, guild_id, canal_id, msg_id, timestamp, deletado_por=None):
-    W, H = 900, 420
+    W = 900
     FONTE_TWILIGHT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "twilight_New_Moon.ttf")
 
-    # Fundo aleatório
+    fonte_nome = _carregar_fonte(FONTE_TWILIGHT, 32)
+    fonte_msg  = _carregar_fonte(FONTE_TWILIGHT, 26)
+    fonte_info = _carregar_fonte(FONTE_TWILIGHT, 22)
+    fonte_id   = _carregar_fonte(FONTE_TWILIGHT, 20)
+    PAD = 30
+    
+    # 1. Processar quebras de linha primeiro
+    conteudo_display = conteudo if conteudo else "*sem conteúdo de texto*"
+    linhas_originais = conteudo_display.split("\n")
+    
+    # 2. Quebrar cada linha por largura usando Pillow (simulado ou real)
+    linhas = []
+    # Cria uma imagem temporária só para ter um ImageDraw
+    _tmp_img = Image.new("RGB", (10, 10))
+    _tmp_draw = ImageDraw.Draw(_tmp_img)
+    
+    max_largura = W - PAD*2
+    
+    for linha_orig in linhas_originais:
+        palavras = linha_orig.split(" ")
+        linha_atual = ""
+        for palavra in palavras:
+            teste = (linha_atual + " " + palavra).strip() if linha_atual else palavra
+            try:
+                larg = _tmp_draw.textbbox((0,0), teste, font=fonte_msg)[2]
+            except Exception:
+                larg = len(teste) * 15
+                
+            if larg <= max_largura:
+                linha_atual = teste
+            else:
+                if linha_atual:
+                    linhas.append(linha_atual)
+                linha_atual = palavra
+        if linha_atual:
+            linhas.append(linha_atual)
+            
+    if not linhas:
+        linhas = ["*sem conteúdo de texto*"]
+        
+    # Limitar um número absurdo de linhas para não gerar imagem gigante
+    max_linhas = 25
+    if len(linhas) > max_linhas:
+        linhas = linhas[:max_linhas]
+        linhas.append("... (mensagem muito longa)")
+
+    # Calcular Altura Dinâmica
+    av_size, border = 80, 3
+    sep_y = PAD + av_size + border*2 + 12
+    msg_y = sep_y + 14
+    
+    # Cada linha tem cerca de 32px de altura
+    altura_texto = len(linhas) * 32
+    sep2_y = msg_y + altura_texto + 14
+    
+    H = sep2_y + 40 # 40px para o ID da mensagem e padding final
+
+    # Fundo aleatório dimensionado para a nova altura
     import glob, random as _rnd
     base_dir = os.path.dirname(os.path.abspath(__file__))
     fundos = sorted(glob.glob(os.path.join(base_dir, "fundo_log*.png")))
     if fundos:
-        img = Image.open(_rnd.choice(fundos)).convert("RGBA").resize((W, H), Image.LANCZOS)
+        # Pega a imagem base
+        img_base = Image.open(_rnd.choice(fundos)).convert("RGBA")
+        # Recorta/Redimensiona (usamos crop ou resize, resize é mais fácil)
+        img = img_base.resize((W, H), Image.LANCZOS)
     else:
         img = Image.new("RGBA", (W, H), (10, 8, 20))
 
@@ -318,14 +378,7 @@ def gerar_imagem_log_delete(username, avatar_bytes, conteudo, user_id, guild_id,
     img = Image.alpha_composite(img, overlay)
     draw = ImageDraw.Draw(img)
 
-    fonte_nome = _carregar_fonte(FONTE_TWILIGHT, 32)
-    fonte_msg  = _carregar_fonte(FONTE_TWILIGHT, 26)
-    fonte_info = _carregar_fonte(FONTE_TWILIGHT, 22)
-    fonte_id   = _carregar_fonte(FONTE_TWILIGHT, 20)
-    PAD = 30
-
     # Avatar circular
-    av_size, border = 80, 3
     try:
         av = Image.open(io.BytesIO(avatar_bytes)).convert("RGBA").resize((av_size, av_size))
         mask = Image.new("L", (av_size, av_size), 0)
@@ -337,7 +390,6 @@ def gerar_imagem_log_delete(username, avatar_bytes, conteudo, user_id, guild_id,
         img.paste(bi, (PAD, PAD), bi)
     except Exception:
         pass
-    draw = ImageDraw.Draw(img)
 
     # Nome ao lado do avatar
     draw.text((PAD + av_size + border*2 + 14, PAD + 10), username, font=fonte_nome, fill=(255, 255, 255))
@@ -350,38 +402,13 @@ def gerar_imagem_log_delete(username, avatar_bytes, conteudo, user_id, guild_id,
     draw.text((W - PAD - ts_w, PAD + 14), timestamp, font=fonte_info, fill=(180, 180, 180))
 
     # Separador 1
-    sep_y = PAD + av_size + border*2 + 12
     draw.line([(PAD, sep_y), (W-PAD, sep_y)], fill=(31,139,76,140), width=1)
 
-    # Mensagem — quebra por palavra
-    conteudo_display = conteudo if conteudo else "*sem conteúdo de texto*"
-    palavras = conteudo_display.split(" ")
-    linhas, linha_atual = [], ""
-    for palavra in palavras:
-        teste = (linha_atual + " " + palavra).strip()
-        try:
-            larg = draw.textbbox((0,0), teste, font=fonte_msg)[2]
-        except Exception:
-            larg = len(teste) * 15
-        if larg <= W - PAD*2:
-            linha_atual = teste
-        else:
-            if linha_atual:
-                linhas.append(linha_atual)
-            linha_atual = palavra
-        if len(linhas) >= 5:
-            break
-    if linha_atual and len(linhas) < 5:
-        linhas.append(linha_atual)
-    if not linhas:
-        linhas = [conteudo_display[:90]]
-
-    msg_y = sep_y + 14
+    # Escrever Linhas da Mensagem
     for idx, linha in enumerate(linhas):
         draw.text((PAD, msg_y + idx * 32), linha, font=fonte_msg, fill=(240, 235, 220))
 
     # Separador 2
-    sep2_y = msg_y + len(linhas) * 32 + 14
     draw.line([(PAD, sep2_y), (W-PAD, sep2_y)], fill=(31,139,76,140), width=1)
 
     # ID da mensagem — centralizado

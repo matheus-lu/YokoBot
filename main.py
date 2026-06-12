@@ -1727,9 +1727,19 @@ class RemandarMensagemModal(Modal):
 
         # Extrair dados da mensagem original para herdar V2
         teve_separador = False
+        estilo_detectado = "padrao"
+        
         try:
             raw_data = await bot.http.get_message(target_msg.channel.id, target_msg.id)
-            for c in raw_data.get('components', []):
+            
+            # Detectar estilo invertido
+            comps = raw_data.get('components', [])
+            for c in comps[:2]:
+                if c.get('type') == 14 and 'Ondrakos' in str(c.get('text', '')):
+                    estilo_detectado = "invertido"
+                    break
+                    
+            for c in comps:
                 def find_img_sep(obj):
                     nonlocal url_img_v2, teve_separador
                     if isinstance(obj, dict):
@@ -1769,9 +1779,7 @@ class RemandarMensagemModal(Modal):
             for field in target_msg.embeds[0].fields:
                 texto_v2 += f"**{field.name}**\n{field.value}\n\n"
                 
-        if footer_final:
-            texto_v2 += f"-# {footer_final}"
-            
+        # Removido: o footer_final agora e adicionado separadamente no Layout
         texto_v2 = texto_v2.strip()
 
         # Processar imagem
@@ -1893,19 +1901,42 @@ class RemandarMensagemModal(Modal):
         import os
         
         # Montar um layout V2 bonito e padronizado
-        if nova_imagem and nome_img:
-            arquivos_enviar.append(nova_imagem)
-            itens_v2.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://" + nome_img)))
-            itens_v2.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+        if estilo_detectado == "padrao":
+            if nova_imagem and nome_img:
+                arquivos_enviar.append(nova_imagem)
+                itens_v2.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://" + nome_img)))
+                itens_v2.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
 
-        if texto_v2:
-            itens_v2.append(discord.ui.TextDisplay(texto_v2))
-            
-        # Adicionar o separador e o footer se necessário
-        if (sep_depois_msg or teve_separador) and os.path.exists("sep_anuncio.png"):
-            itens_v2.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
-            arquivos_enviar.append(discord.File("sep_anuncio.png", filename="sep_depois.png"))
-            itens_v2.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://sep_depois.png")))
+            if texto_v2:
+                itens_v2.append(discord.ui.TextDisplay(texto_v2))
+                
+            if (sep_depois_msg or teve_separador) and os.path.exists("sep_anuncio.png"):
+                arquivos_enviar.append(discord.File("sep_anuncio.png", filename="sep_anuncio_bot.png"))
+                itens_v2.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+                itens_v2.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://sep_anuncio_bot.png")))
+                
+            if footer_final:
+                itens_v2.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+                itens_v2.append(discord.ui.TextDisplay(f"-# {footer_final}"))
+                
+        else: # invertido
+            if footer_final:
+                itens_v2.append(discord.ui.TextDisplay(f"-# {footer_final}"))
+                itens_v2.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+                
+            if (sep_depois_msg or teve_separador) and os.path.exists("sep_anuncio.png"):
+                arquivos_enviar.append(discord.File("sep_anuncio.png", filename="sep_anuncio_bot.png"))
+                itens_v2.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://sep_anuncio_bot.png")))
+                itens_v2.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+                
+            if texto_v2:
+                itens_v2.append(discord.ui.TextDisplay(texto_v2))
+                
+            if nova_imagem and nome_img:
+                arquivos_enviar.append(nova_imagem)
+                itens_v2.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+                itens_v2.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://" + nome_img)))
+                
 
         view_final = discord.ui.LayoutView()
         
