@@ -190,6 +190,20 @@ async def bot_action(request):
             asyncio.create_task(background_varredura())
             return web.json_response({"status": "success", "message": f"A varredura foi iniciada em background para {limite} mensagens."})
             
+        elif action == 'get_config':
+            import config_dynamic
+            return web.json_response({
+                "status": "success",
+                "data": config_dynamic.all_data()
+            })
+            
+        elif action == 'save_config':
+            import config_dynamic
+            new_data = data.get('config', {})
+            for k, v in new_data.items():
+                config_dynamic.set(k, v)
+            return web.json_response({"status": "success", "message": "Configurações salvas com sucesso!"})
+
         return web.json_response({"status": "error", "message": "Ação desconhecida."}, status=400)
     except Exception as e:
         return web.json_response({"status": "error", "message": str(e)}, status=500)

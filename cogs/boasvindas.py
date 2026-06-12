@@ -17,18 +17,24 @@ class EntradaLayout(discord.ui.LayoutView):
     def __init__(self, member: discord.Member):
         super().__init__(timeout=None)
         count = len([m for m in member.guild.members if not m.bot])
-        self._container = discord.ui.Container(
-            discord.ui.MediaGallery(
-                discord.MediaGalleryItem("attachment://boasvindas.png"),
-            ),
-            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
-            discord.ui.TextDisplay(
+        msg_custom = config.BOAS_VINDAS_MENSAGEM()
+        if msg_custom:
+            texto = msg_custom.replace("{{user}}", member.mention).replace("{{count}}", str(count))
+        else:
+            texto = (
                 "🌞  |▸**Entrada › Bem vindo(a) › Clã de Ondrakos**\n\n"
                 f"{member.mention} 🐉 | Um novo espírito chegou ao santuário!\n"
                 f"Agora somos **{count}** membros protegidos pelo dragão.\n\n"
                 "🕍 ⧽Explore os canais e sinta-se em casa entre dragões, mistérios e boas conversas.\n"
                 "Que sua presença traga boas energias ao clã."
+            )
+            
+        self._container = discord.ui.Container(
+            discord.ui.MediaGallery(
+                discord.MediaGalleryItem("attachment://boasvindas.png"),
             ),
+            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
+            discord.ui.TextDisplay(texto),
             accent_color=ONDRAKOS_COLOR,
         )
         self.add_item(self._container)
@@ -108,6 +114,16 @@ class BoasVindasCog(commands.Cog):
         await self.atualizar_contador(member.guild)
         if member.bot:
             return
+            
+        role_id = config.AUTOROLE_ID()
+        if role_id:
+            try:
+                role = member.guild.get_role(role_id)
+                if role:
+                    await member.add_roles(role)
+            except Exception as e:
+                print("Erro autorole: " + str(e))
+                
         canal = self.bot.get_channel(config.BOAS_VINDAS_CANAL_ID())
         if not canal:
             return
