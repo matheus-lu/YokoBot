@@ -60,6 +60,67 @@ async def send_layout(request):
     except Exception as e:
         return web.json_response({"status": "error", "message": str(e)}, status=500)
 
+async def get_channels(request):
+    bot = request.app['bot']
+    try:
+        data = []
+        for guild in bot.guilds:
+            # Pegamos categorias e canais sem categoria
+            for category in guild.categories:
+                cat_data = {
+                    "id": str(category.id),
+                    "name": category.name,
+                    "channels": []
+                }
+                for channel in category.channels:
+                    # Incluímos canais de texto e de fórum
+                    if str(channel.type) in ['text', 'forum', 'news']:
+                        chan_data = {
+                            "id": str(channel.id),
+                            "name": channel.name,
+                            "type": str(channel.type),
+                            "topics": []
+                        }
+                        
+                        # Se for fórum, pega as threads ativas
+                        if str(channel.type) == 'forum':
+                            for thread in channel.threads:
+                                chan_data["topics"].append({
+                                    "id": str(thread.id),
+                                    "name": thread.name
+                                })
+                                
+                        cat_data["channels"].append(chan_data)
+                
+                if cat_data["channels"]:
+                    data.append(cat_data)
+            
+            # Para canais que não estão em nenhuma categoria
+            none_cat = {"id": "none", "name": "Sem Categoria", "channels": []}
+            for channel in guild.channels:
+                if channel.category_id is None and str(channel.type) in ['text', 'forum', 'news']:
+                    chan_data = {
+                        "id": str(channel.id),
+                        "name": channel.name,
+                        "type": str(channel.type),
+                        "topics": []
+                    }
+                    if str(channel.type) == 'forum':
+                        for thread in channel.threads:
+                            chan_data["topics"].append({
+                                "id": str(thread.id),
+                                "name": thread.name
+                            })
+                    none_cat["channels"].append(chan_data)
+            if none_cat["channels"]:
+                data.append(none_cat)
+
+        return web.json_response({"status": "success", "categories": data})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return web.json_response({"status": "error", "message": str(e)}, status=500)
+
 # ── Rota raiz simples para teste ──
 async def index(request):
     return web.Response(text="API do Ondrakos V2 está online! 🐉")
@@ -82,6 +143,7 @@ async def start_server(bot):
     # Registrando rotas
     route_index = app.router.add_get('/', index)
     route_layouts = app.router.add_get('/api/layouts', get_layouts)
+    route_channels = app.router.add_get('/api/channels', get_channels)
     
     # Rota de envio com preflight manual CORS para métodos POST se o aiohttp_cors não pegar automaticamente
     route_send = app.router.add_post('/api/send_layout', send_layout)
@@ -89,6 +151,7 @@ async def start_server(bot):
     
     cors.add(route_index)
     cors.add(route_layouts)
+    cors.add(route_channels)
     cors.add(route_send)
     
     runner = web.AppRunner(app)
