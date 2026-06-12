@@ -1057,6 +1057,23 @@ class PostagemModal(Modal):
                     else:
                         await thread_with_msg.thread.send(f"⚠️ Erro ao enviar arquivo(s): {e.text or str(e)}")
 
+            img_bytes = None
+            if primeira_imagem:
+                for a in arquivos:
+                    if a.filename == primeira_imagem:
+                        a.fp.seek(0)
+                        img_bytes = a.fp.read()
+                        a.fp.seek(0)
+                        break
+
+            try:
+                await bot.db.salvar_layout(
+                    thread_with_msg.message.id, thread_with_msg.thread.id, 
+                    dados['titulo'], dados['mensagem'], "© Ondrakos · 水の竜", 
+                    "padrao", "[]", img_bytes, primeira_imagem, "postagem"
+                )
+            except Exception: pass
+
             await msg.reply(
                 "✅ Postagem criada! " + thread_with_msg.thread.jump_url,
                 delete_after=15
@@ -2613,6 +2630,11 @@ async def varredura_v2(ctx):
                         footer_status = "Nao"
                         
                         # ── V1 EMBEDS ──
+                        tipo_msg = "anuncio"
+                        if isinstance(canal, discord.Thread) and hasattr(canal, 'parent') and isinstance(canal.parent, discord.ForumChannel):
+                            tipo_msg = "postagem"
+                            
+                        # ── V1 EMBEDS ──
                         if m.embeds and not m.components:
                             emb = m.embeds[0]
                             titulo = emb.title or ""
@@ -2632,7 +2654,7 @@ async def varredura_v2(ctx):
                                     imagem_status = "Sim"
                             
                             try:
-                                await bot.db.salvar_layout(m.id, canal.id, titulo[:256], descricao, footer[:2048], "padrao", reacoes, img_bytes, img_nome)
+                                await bot.db.salvar_layout(m.id, canal.id, titulo[:256], descricao, footer[:2048], "padrao", reacoes, img_bytes, img_nome, tipo_msg)
                                 total_resgatado += 1
                                 relatorio.append(f"[V1] Msg {m.id} em #{canal.name} -> Titulo: {titulo_status}, Imagem: {imagem_status}, Texto: {texto_status}, Footer: {footer_status}")
                             except Exception:
@@ -2716,7 +2738,7 @@ async def varredura_v2(ctx):
                             
                             # Salva no DB
                             try:
-                                await bot.db.salvar_layout(m.id, canal.id, titulo[:256], descricao, footer[:2048], estilo_detectado, reacoes, img_bytes, img_nome)
+                                await bot.db.salvar_layout(m.id, canal.id, titulo[:256], descricao, footer[:2048], estilo_detectado, reacoes, img_bytes, img_nome, tipo_msg)
                                 total_resgatado += 1
                                 relatorio.append(f"[V2] Msg {m.id} em #{canal.name} -> Titulo: {titulo_status}, Imagem: {imagem_status}, Texto: {texto_status}, Footer: {footer_status}")
                             except Exception:
