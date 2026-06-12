@@ -165,6 +165,57 @@ class LogsCog(commands.Cog):
             embed.add_field(name="Conteudo", value=message.content or "*sem texto*", inline=False)
             await canal.send(embed=embed)
 
+
+    # ── Mensagem Deletada (Raw - pega mensagens fora do cache) ──
+    @commands.Cog.listener()
+    async def on_raw_message_delete(self, payload):
+        if payload.cached_message:
+            return  # Já foi pego pelo on_message_delete normal
+
+        canal_log = self.bot.get_channel(config.ADM_LOG_CANAL_ID())
+        if not canal_log:
+            return
+
+        canal_origem = self.bot.get_channel(payload.channel_id)
+        if canal_origem and canal_origem.id == config.MUSICA_CANAL_ID():
+            return
+
+        # Tentar descobrir quem deletou via audit log
+        deletado_por = None
+        guild = self.bot.get_guild(payload.guild_id)
+        if guild:
+            try:
+                import asyncio as _asyncio
+                await _asyncio.sleep(1.5)
+                async def _get_deleter():
+                    async for entry in guild.audit_logs(limit=10, action=discord.AuditLogAction.message_delete):
+                        import datetime
+                        agora = datetime.datetime.now(datetime.timezone.utc)
+                        diff = (agora - entry.created_at).total_seconds()
+                        if diff < 10:
+                            return entry.user
+                    return None
+                deletado_por = await _asyncio.wait_for(_get_deleter(), timeout=5.0)
+            except Exception:
+                pass
+
+        embed = discord.Embed(
+            title="🗑️ Mensagem Deletada (Fora do Cache)",
+            description="Uma mensagem antiga ou que não estava na memória do bot foi apagada.",
+            color=discord.Color.dark_red()
+        )
+        if canal_origem:
+            embed.add_field(name="📢 Canal", value=f"{canal_origem.mention}\n`{canal_origem.id}`", inline=True)
+        else:
+            embed.add_field(name="📢 Canal ID", value=f"`{payload.channel_id}`", inline=True)
+            
+        embed.add_field(name="🔑 ID da Mensagem", value=f"`{payload.message_id}`", inline=True)
+        
+        if deletado_por:
+            embed.add_field(name="🗑️ Deletado por", value=f"{deletado_por.mention}", inline=True)
+
+        await canal_log.send(embed=embed)
+
     # ── Mensagem Editada ───────────────────────────────────
     @commands.Cog.listener()
     async def on_message_edit(self, before, after):
