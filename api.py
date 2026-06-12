@@ -145,10 +145,8 @@ async def start_server(bot):
     route_layouts = app.router.add_get('/api/layouts', get_layouts)
     route_channels = app.router.add_get('/api/channels', get_channels)
     
-    # Rota de envio com preflight manual CORS para métodos POST se o aiohttp_cors não pegar automaticamente
+    # Rota de envio
     route_send = app.router.add_post('/api/send_layout', send_layout)
-    route_send_options = app.router.add_options('/api/send_layout', lambda r: web.Response(headers={'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type'}))
-    
     cors.add(route_index)
     cors.add(route_layouts)
     cors.add(route_channels)
