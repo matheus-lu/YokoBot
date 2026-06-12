@@ -3264,4 +3264,23 @@ async def on_api_send_layout(canal, tipo, titulo, mensagem, imagem_url, blocos, 
     except Exception as e:
         fut.set_exception(e)
 
+@bot.event
+async def on_message(message: discord.Message):
+    await bot.process_commands(message)
+    if message.author == bot.user:
+        return
+        
+    if message.channel.id == 1507724879904903248:
+        emojis = [
+            "<:_verificadoverde:1507463200642171142>",
+            "<a:_pixellovegreen:1507139369188855878>",
+            "<a:_sinosfloridos:1507143271263244299>",
+            "<a:_brilha:1508358170844598272>"
+        ]
+        for emoji in emojis:
+            try:
+                await message.add_reaction(emoji)
+            except Exception:
+                pass
+
 bot.run(config.TOKEN)
