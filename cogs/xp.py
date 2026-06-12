@@ -213,15 +213,25 @@ class XPCog(commands.Cog):
             ephemeral=True,
         )
 
+    # ── /forcar-podio ───────────────────────────────────────
+    @app_commands.command(name="forcar-podio", description="[Admin] Força o envio do pódio de XP diário no chat")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def forcar_podio(self, interaction: discord.Interaction):
+        await interaction.response.send_message("⏳ Forçando envio do pódio...", ephemeral=True)
+        await self._enviar_podio()
+
     # ── Ranking diário à meia-noite BRT ────────────────────
-    @tasks.loop(hours=24)
+    @tasks.loop(time=datetime.time(hour=0, minute=0, tzinfo=datetime.timezone(datetime.timedelta(hours=-3))))
     async def atualizar_ranking_diario(self):
+        await self._enviar_podio()
+
+    async def _enviar_podio(self):
         for guild in self.bot.guilds:
             if not hasattr(self.bot, 'db') or not self.bot.db:
-                return
+                continue
             top = await self.bot.db.ranking_xp(guild.id, 3)
             if not top:
-                return
+                continue
 
             medalhas = ["🥇", "🥈", "🥉"]
             linhas = []
@@ -250,17 +260,6 @@ class XPCog(commands.Cog):
     @atualizar_ranking_diario.before_loop
     async def before_ranking(self):
         await self.bot.wait_until_ready()
-        BRT = datetime.timezone(datetime.timedelta(hours=-3))
-        agora_brt = datetime.datetime.now(BRT)
-        amanha_brt = (agora_brt + datetime.timedelta(days=1)).replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
-        espera = (amanha_brt - agora_brt).total_seconds()
-        print(
-            f"[XP] ⏳ Pódio agendado para {amanha_brt.strftime('%d/%m/%Y 00:00 BRT')} "
-            f"(em {espera/3600:.1f}h)"
-        )
-        await asyncio.sleep(espera)
 
 
 async def setup(bot):

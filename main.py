@@ -2030,3 +2030,159 @@ async def som_cmd(interaction: discord.Interaction):
 
 # ── Iniciar o Bot ──────────────────────────────────────────
 bot.run(config.TOKEN)
+
+@bot.tree.command(name="repostar-topico", description="[Admin] Clona o tópico atual para V2")
+@app_commands.checks.has_permissions(administrator=True)
+async def repostar_topico(interaction: discord.Interaction):
+    canal = interaction.channel
+    if not isinstance(canal, discord.Thread) or not isinstance(canal.parent, discord.ForumChannel):
+        await interaction.response.send_message("❌ Este comando só pode ser usado dentro de um tópico de fórum.", ephemeral=True)
+        return
+
+    await interaction.response.defer(ephemeral=True)
+
+    try:
+        mensagens = [m async for m in canal.history(limit=50, oldest_first=True)]
+    except Exception as e:
+        await interaction.followup.send(f"❌ Erro ao ler mensagens: {e}")
+        return
+
+    if not mensagens:
+        await interaction.followup.send("❌ Tópico vazio.")
+        return
+
+    import io
+
+    # Processar a primeira mensagem (que vai criar o tópico)
+    m1 = mensagens[0]
+    
+    texto_final = m1.content or ""
+    if m1.embeds:
+        emb = m1.embeds[0]
+        if emb.title:
+            texto_final += f"**{emb.title}**\n\n"
+        if emb.description:
+            texto_final += f"{emb.description}\n\n"
+        for field in emb.fields:
+            texto_final += f"**{field.name}**\n{field.value}\n\n"
+        if emb.footer and emb.footer.text:
+            texto_final += f"-# {emb.footer.text}"
+
+    itens = []
+    if texto_final.strip():
+        itens.append(discord.ui.TextDisplay(texto_final))
+
+    arquivos = []
+    primeira_imagem = None
+    for att in m1.attachments:
+        try:
+            dados = await att.read()
+            arquivos.append(discord.File(io.BytesIO(dados), filename=att.filename))
+            if primeira_imagem is None and att.content_type and att.content_type.startswith("image"):
+                primeira_imagem = att.filename
+        except:
+            pass
+
+    if primeira_imagem:
+        itens.insert(0, discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://" + primeira_imagem)))
+
+    view_post = discord.ui.LayoutView()
+    if itens:
+        view_post.add_item(discord.ui.Container(*itens, accent_color=DORORO_COLOR))
+
+    primeiro_arquivo = arquivos[0] if arquivos else discord.utils.MISSING
+    resto_arquivos = arquivos[1:]
+
+    # Criar o novo tópico no mesmo fórum
+    forum = canal.parent
+    try:
+        novo_topico = await forum.create_thread(
+            name=canal.name,
+            content="",
+            view=view_post if itens else discord.utils.MISSING,
+            file=primeiro_arquivo,
+            applied_tags=canal.applied_tags
+        )
+    except Exception as e:
+        await interaction.followup.send(f"❌ Erro ao criar novo tópico: {e}")
+        return
+
+    # Enviar o resto dos anexos da primeira mensagem
+    if resto_arquivos:
+        for i in range(0, len(resto_arquivos), 10):
+            try:
+                await novo_topico.thread.send(files=resto_arquivos[i:i+10])
+            except:
+                pass
+
+    # Processar o resto das mensagens
+    for m in mensagens[1:]:
+        if m.author.id == interaction.user.id and m.content.startswith("/repostar-topico"):
+            continue # ignora o comando do usuario se aparecer
+
+        # Se for só um separador (sem texto, sem embed, com anexo "sep")
+        eh_separador = False
+        if not m.content and not m.embeds and len(m.attachments) == 1:
+            if "sep" in m.attachments[0].filename.lower():
+                eh_separador = True
+
+        arquivos_m = []
+        primeira_img_m = None
+        for att in m.attachments:
+            try:
+                dados = await att.read()
+                arquivos_m.append(discord.File(io.BytesIO(dados), filename=att.filename))
+                if primeira_img_m is None and att.content_type and att.content_type.startswith("image"):
+                    primeira_img_m = att.filename
+            except:
+                pass
+
+        if eh_separador:
+            try:
+                await novo_topico.thread.send(file=arquivos_m[0])
+            except:
+                pass
+            continue
+
+        # Mensagem normal ou embed -> V2
+        texto_m = m.content or ""
+        if m.embeds:
+            emb = m.embeds[0]
+            if emb.title:
+                texto_m += f"**{emb.title}**\n\n"
+            if emb.description:
+                texto_m += f"{emb.description}\n\n"
+            for field in emb.fields:
+                texto_m += f"**{field.name}**\n{field.value}\n\n"
+            if emb.footer and emb.footer.text:
+                texto_m += f"-# {emb.footer.text}"
+
+        itens_m = []
+        if texto_m.strip():
+            itens_m.append(discord.ui.TextDisplay(texto_m))
+            
+        if primeira_img_m and not eh_separador:
+            itens_m.insert(0, discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://" + primeira_img_m)))
+
+        view_m = discord.ui.LayoutView()
+        if itens_m:
+            view_m.add_item(discord.ui.Container(*itens_m, accent_color=DORORO_COLOR))
+
+        prim_arq_m = arquivos_m[0] if arquivos_m else discord.utils.MISSING
+        resto_m = arquivos_m[1:]
+
+        try:
+            if itens_m or prim_arq_m is not discord.utils.MISSING:
+                await novo_topico.thread.send(
+                    content="",
+                    view=view_m if itens_m else discord.utils.MISSING,
+                    file=prim_arq_m
+                )
+            if resto_m:
+                for i in range(0, len(resto_m), 10):
+                    await novo_topico.thread.send(files=resto_m[i:i+10])
+        except:
+            pass
+
+    await interaction.followup.send(f"✅ Tópico clonado para V2 com sucesso! [Ver novo tópico]({novo_topico.message.jump_url})")
+
