@@ -2914,13 +2914,38 @@ class AvisoChatLayout(discord.ui.LayoutView):
             itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
             
         titulo_limpo = titulo.replace('**', '')
-        import re
-        match = re.search(r'([a-zA-Z0-9À-ÿ].*[a-zA-Z0-9À-ÿ]|[a-zA-Z0-9À-ÿ])', titulo_limpo)
-        if match:
-            start, end = match.span()
-            titulo_formatado = titulo_limpo[:start] + "**" + titulo_limpo[start:end] + "**" + titulo_limpo[end:]
+        if '|' in titulo_limpo:
+            partes = titulo_limpo.split('|', 2)
+            if len(partes) >= 2:
+                meio = partes[1]
+                start_space = len(meio) - len(meio.lstrip())
+                end_space = len(meio) - len(meio.rstrip())
+                esq = meio[:start_space]
+                
+                if end_space > 0:
+                    dir_esp = meio[-end_space:]
+                    centro = meio[start_space:-end_space]
+                else:
+                    dir_esp = ""
+                    centro = meio[start_space:]
+                
+                meio_formatado = f"{esq}**{centro}**{dir_esp}" if centro else meio
+                
+                if len(partes) == 3:
+                    titulo_formatado = f"{partes[0]}|{meio_formatado}|{partes[2]}"
+                else:
+                    titulo_formatado = f"{partes[0]}|{meio_formatado}"
         else:
-            titulo_formatado = f"**{titulo_limpo}**"
+            start_space = len(titulo_limpo) - len(titulo_limpo.lstrip())
+            end_space = len(titulo_limpo) - len(titulo_limpo.rstrip())
+            esq = titulo_limpo[:start_space]
+            if end_space > 0:
+                dir_esp = titulo_limpo[-end_space:]
+                centro = titulo_limpo[start_space:-end_space]
+            else:
+                dir_esp = ""
+                centro = titulo_limpo[start_space:]
+            titulo_formatado = f"{esq}**{centro}**{dir_esp}" if centro else titulo_limpo
 
         itens.extend([
             discord.ui.TextDisplay(titulo_formatado),
