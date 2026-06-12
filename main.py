@@ -2192,17 +2192,15 @@ async def repostar_topico(interaction: discord.Interaction):
                 arquivos_m.insert(0, discord.File(io.BytesIO(img_bytes), filename=nome_arq))
                 primeira_img_m = nome_arq
 
-        gallery_items = []
         # Adiciona o separador por padrão em todas as mensagens seguintes
+        # Mas NÃO adiciona ele na MediaGallery, para o Discord renderizar ele solto acima do V2!
         if os.path.exists("midia/sep_anuncio.png"):
             arquivos_m.insert(0, discord.File("midia/sep_anuncio.png", filename="sep_anuncio.png"))
-            gallery_items.append(discord.MediaGalleryItem("attachment://sep_anuncio.png"))
 
+        # Apenas a imagem principal (brasão) entra na MediaGallery,
+        # assim o Discord não comprime as duas imagens num grid quadrado!
         if primeira_img_m:
-            gallery_items.append(discord.MediaGalleryItem("attachment://" + primeira_img_m))
-
-        if gallery_items:
-            itens_m.insert(0, discord.ui.MediaGallery(*gallery_items))
+            itens_m.insert(0, discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://" + primeira_img_m)))
 
         view_m = discord.ui.LayoutView()
         if itens_m:
