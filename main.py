@@ -1054,7 +1054,7 @@ class PostagemDestinoView(discord.ui.LayoutView):
         
         self.add_item(discord.ui.Container(
             discord.ui.TextDisplay("🐉 **Nova Postagem › Selecione o Fórum**\nNavegue pelas categorias para encontrar o fórum."),
-            self.select_cat,
+            discord.ui.ActionRow(self.select_cat),
             accent_color=DORORO_COLOR
         ))
 
@@ -1074,8 +1074,8 @@ class PostagemDestinoView(discord.ui.LayoutView):
         self.clear_items()
         self.add_item(discord.ui.Container(
             discord.ui.TextDisplay("🐉 **Nova Postagem › Selecione o Fórum**\nCategoria selecionada. Agora escolha o fórum."),
-            self.select_cat,
-            self.select_forum,
+            discord.ui.ActionRow(self.select_cat),
+            discord.ui.ActionRow(self.select_forum),
             accent_color=DORORO_COLOR
         ))
         await interaction.response.edit_message(view=self)
@@ -1128,7 +1128,7 @@ class AnuncioDestinoView(discord.ui.LayoutView):
         
         self.add_item(discord.ui.Container(
             discord.ui.TextDisplay("🐉 **Novo Anúncio › Selecione o Destino**\nNavegue pelas categorias para encontrar o canal."),
-            self.select_cat,
+            discord.ui.ActionRow(self.select_cat),
             accent_color=DORORO_COLOR
         ))
 
@@ -1154,8 +1154,8 @@ class AnuncioDestinoView(discord.ui.LayoutView):
         self.clear_items()
         self.add_item(discord.ui.Container(
             discord.ui.TextDisplay("🐉 **Novo Anúncio › Selecione o Destino**\nCategoria selecionada. Agora escolha o canal."),
-            self.select_cat,
-            self.select_canal,
+            discord.ui.ActionRow(self.select_cat),
+            discord.ui.ActionRow(self.select_canal),
             accent_color=DORORO_COLOR
         ))
         await interaction.response.edit_message(view=self)
@@ -1177,9 +1177,9 @@ class AnuncioDestinoView(discord.ui.LayoutView):
             self.clear_items()
             self.add_item(discord.ui.Container(
                 discord.ui.TextDisplay("🐉 **Novo Anúncio › Selecione o Destino**\nFórum selecionado. Agora escolha o tópico."),
-                self.select_cat,
-                self.select_canal,
-                self.select_topico,
+                discord.ui.ActionRow(self.select_cat),
+                discord.ui.ActionRow(self.select_canal),
+                discord.ui.ActionRow(self.select_topico),
                 accent_color=DORORO_COLOR
             ))
             await interaction.response.edit_message(view=self)
@@ -1658,41 +1658,80 @@ class RemandarMensagemModal(Modal):
             await interaction.followup.send("Mensagem nao encontrada.", ephemeral=True)
             return
 
-        # Montar novo embed baseado no original
+        # Montar texto V2
+        texto_v2 = target_msg.content or ""
+        url_img_v2 = None
+        
+        titulo_final = dados["titulo"].strip()
+        desc_final = dados["descricao"].strip()
+        footer_final = dados["footer"].strip()
+
         if target_msg.embeds:
-            novo_embed = target_msg.embeds[0].copy()
-            if dados["titulo"].strip():
-                novo_embed.title = dados["titulo"].strip()
-            if dados["descricao"].strip():
-                novo_embed.description = dados["descricao"].strip()
-            if dados["footer"].strip():
-                novo_embed.set_footer(text=dados["footer"].strip())
-        else:
-            novo_embed = None
+            emb = target_msg.embeds[0]
+            if not titulo_final and emb.title:
+                titulo_final = emb.title
+            if not desc_final and emb.description:
+                desc_final = emb.description
+            if not footer_final and emb.footer and emb.footer.text:
+                footer_final = emb.footer.text
+            if emb.image and emb.image.url:
+                url_img_v2 = emb.image.url
+
+        if titulo_final:
+            texto_v2 += f"**{titulo_final}**\n\n"
+        if desc_final:
+            texto_v2 += f"{desc_final}\n\n"
+            
+        if target_msg.embeds:
+            for field in target_msg.embeds[0].fields:
+                texto_v2 += f"**{field.name}**\n{field.value}\n\n"
+                
+        if footer_final:
+            texto_v2 += f"-# {footer_final}"
+            
+        texto_v2 = texto_v2.strip()
 
         # Processar imagem
         nova_imagem = None
+        nome_img = None
         opcao_img = msg.content.strip().lower()
+        
+        import io
+        import aiohttp
+        import os
+        import urllib.parse
+        async def fetch_bytes(url):
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as resp:
+                    if resp.status == 200:
+                        return await resp.read()
+            return None
+
         if opcao_img == "remover":
-            if novo_embed:
-                novo_embed.set_image(url=None)
+            url_img_v2 = None
         elif opcao_img == "pular":
-            # Manter imagem original — baixar do attachment da mensagem original
-            if novo_embed and target_msg.attachments:
+            if target_msg.attachments:
                 try:
                     att_orig = target_msg.attachments[0]
                     dados_orig = await asyncio.wait_for(att_orig.read(), timeout=30.0)
                     nova_imagem = discord.File(io.BytesIO(dados_orig), filename=att_orig.filename)
-                    novo_embed.set_image(url="attachment://" + att_orig.filename)
+                    nome_img = att_orig.filename
                 except Exception:
                     pass
+            elif url_img_v2:
+                img_bytes = await fetch_bytes(url_img_v2)
+                if img_bytes:
+                    url_path = urllib.parse.urlparse(url_img_v2).path
+                    ext = os.path.splitext(url_path)[1]
+                    if not ext: ext = ".png"
+                    nome_img = f"img_v2{ext}"
+                    nova_imagem = discord.File(io.BytesIO(img_bytes), filename=nome_img)
         elif msg.attachments:
             att = msg.attachments[0]
             try:
                 dados_bytes = await asyncio.wait_for(att.read(), timeout=30.0)
                 nova_imagem = discord.File(io.BytesIO(dados_bytes), filename=att.filename)
-                if novo_embed:
-                    novo_embed.set_image(url="attachment://" + att.filename)
+                nome_img = att.filename
             except Exception as e:
                 await interaction.followup.send("Erro ao baixar imagem: " + str(e), ephemeral=True)
 
@@ -1741,52 +1780,70 @@ class RemandarMensagemModal(Modal):
                 from __main__ import AnuncioPresencaView
                 view_recriar = AnuncioPresencaView()
 
-        # Enviar nova mensagem no mesmo canal
+        # Verificar se é um anuncio com separadores
+        sep_antes_msg = None
+        sep_depois_msg = None
         try:
-            kwargs = {}
-            if novo_embed:
-                kwargs['embed'] = novo_embed
+            msgs_antes = [m async for m in canal.history(limit=3, before=target_msg)]
+            for m in msgs_antes:
+                if m.author.id == bot.user.id and m.attachments and not m.embeds:
+                    if any("sep" in a.filename.lower() for a in m.attachments):
+                        sep_antes_msg = m
+                        break
+            msgs_depois = [m async for m in canal.history(limit=3, after=target_msg)]
+            for m in msgs_depois:
+                if m.author.id == bot.user.id and m.attachments and not m.embeds:
+                    if any("sep" in a.filename.lower() for a in m.attachments):
+                        sep_depois_msg = m
+                        break
+        except Exception:
+            pass
+
+        itens_v2 = []
+        arquivos_enviar = []
+        import os
+        
+        if sep_antes_msg and os.path.exists("sep_anuncio.png"):
+            arquivos_enviar.append(discord.File("sep_anuncio.png", filename="sep_antes.png"))
+            itens_v2.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://sep_antes.png")))
+            itens_v2.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+
+        if nova_imagem and nome_img:
+            arquivos_enviar.append(nova_imagem)
+            itens_v2.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://" + nome_img)))
+            itens_v2.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+
+        if texto_v2:
+            itens_v2.append(discord.ui.TextDisplay(texto_v2))
+            
+        if sep_depois_msg and os.path.exists("sep_anuncio.png"):
+            itens_v2.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+            arquivos_enviar.append(discord.File("sep_anuncio.png", filename="sep_depois.png"))
+            itens_v2.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://sep_depois.png")))
+
+        view_final = discord.ui.LayoutView()
+        
+        if view_recriar:
+            if isinstance(view_recriar, discord.ui.LayoutView):
+                for child in view_recriar.children:
+                    itens_v2.append(child)
             else:
-                kwargs['content'] = dados["descricao"].strip() or target_msg.content
-            if nova_imagem:
-                kwargs['file'] = nova_imagem
-            if view_recriar:
-                kwargs['view'] = view_recriar
+                for child in view_recriar.children:
+                    if isinstance(child, discord.ui.Button):
+                        itens_v2.append(discord.ui.ActionRow(child))
 
-            # Verificar se é um anuncio com separadores (text_sep.png antes e depois)
-            sep_antes_msg = None
-            sep_depois_msg = None
-            try:
-                msgs_antes = [m async for m in canal.history(limit=3, before=target_msg)]
-                for m in msgs_antes:
-                    if m.author.id == bot.user.id and m.attachments and not m.embeds:
-                        if any("sep_anuncio" in a.filename.lower() for a in m.attachments):
-                            sep_antes_msg = m
-                            break
-                msgs_depois = [m async for m in canal.history(limit=3, after=target_msg)]
-                for m in msgs_depois:
-                    if m.author.id == bot.user.id and m.attachments and not m.embeds:
-                        if any("sep_anuncio" in a.filename.lower() for a in m.attachments):
-                            sep_depois_msg = m
-                            break
-            except Exception:
-                pass
+        if itens_v2:
+            view_final.add_item(discord.ui.Container(*itens_v2, accent_color=DORORO_COLOR))
 
-            # Enviar separador antes se existia
-            if sep_antes_msg:
-                sep_file = _sep_file()
-                if sep_file:
-                    await canal.send(file=sep_file)
+        try:
+            kwargs = {'content': ''}
+            if arquivos_enviar:
+                kwargs['files'] = arquivos_enviar
+            if itens_v2 or view_recriar:
+                kwargs['view'] = view_final
 
             await canal.send(**kwargs)
 
-            # Enviar separador depois se existia
-            if sep_depois_msg:
-                sep_file2 = _sep_file()
-                if sep_file2:
-                    await canal.send(file=sep_file2)
-
-            # Apagar mensagem original + separadores
             for m in [sep_antes_msg, target_msg, sep_depois_msg]:
                 if m:
                     try:
@@ -1795,7 +1852,7 @@ class RemandarMensagemModal(Modal):
                     except Exception:
                         pass
 
-            await interaction.followup.send("Mensagem reenviada com sucesso!", ephemeral=True)
+            await interaction.followup.send("Mensagem reenviada com sucesso (V2)!", ephemeral=True)
         except discord.HTTPException as e:
             await interaction.followup.send("Erro ao remandar: " + str(e), ephemeral=True)
 
