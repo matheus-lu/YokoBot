@@ -1632,6 +1632,10 @@ async def editar_cmd(interaction: discord.Interaction, id: str):
         modal.footer_field.default = embed.footer.text if embed.footer else ""
     else:
         modal.descricao_field.default = target_msg.content or ""
+        
+    # Garantia de não ficar tudo em branco se falhar
+    if not modal.titulo_field.default and not modal.descricao_field.default and not modal.footer_field.default:
+        modal.descricao_field.default = "⚠️ Não foi possível extrair automaticamente o texto desta mensagem. Copie e cole manualmente aqui."
 
     await interaction.response.send_modal(modal)
 
@@ -1995,9 +1999,16 @@ async def remandar_cmd(interaction: discord.Interaction, id: str):
         def extrair_v2(obj):
             t = ""
             if isinstance(obj, dict):
-                # O TextDisplay V2 usa type 14 ou similar, e guarda em 'text'
-                if 'text' in obj and isinstance(obj['text'], str) and obj.get('type') not in [2, 3]: # ignora botoes/selects
-                    t += obj['text'] + "\n"
+                # Ignora botões e selects
+                if obj.get('type') in [2, 3, 5, 6, 7, 8]:
+                    pass
+                else:
+                    for key in ['text', 'content', 'value', 'description', 'label']:
+                        if key in obj and isinstance(obj[key], str) and len(obj[key].strip()) > 0:
+                            # Evitar pegar labels muito curtos de sistema
+                            if key != 'label' or len(obj[key]) > 10:
+                                t += obj[key] + "\n"
+                                
                 for k, v in obj.items():
                     t += extrair_v2(v)
             elif isinstance(obj, list):
@@ -2005,7 +2016,8 @@ async def remandar_cmd(interaction: discord.Interaction, id: str):
                     t += extrair_v2(i)
             return t
         
-        v2_text = extrair_v2(raw_data.get('components', [])).strip()
+        # Faz um scan geral em tudo pra não perder nenhum texto
+        v2_text = extrair_v2(raw_data).strip()
     except Exception:
         pass
 
@@ -2034,6 +2046,10 @@ async def remandar_cmd(interaction: discord.Interaction, id: str):
         modal.footer_field.default = footer[:2048]
     else:
         modal.descricao_field.default = target_msg.content or ""
+        
+    # Garantia de não ficar tudo em branco se falhar
+    if not modal.titulo_field.default and not modal.descricao_field.default and not modal.footer_field.default:
+        modal.descricao_field.default = "⚠️ Não foi possível extrair automaticamente o texto desta mensagem. Copie e cole manualmente aqui."
 
     await interaction.response.send_modal(modal)
 
