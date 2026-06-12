@@ -2119,7 +2119,12 @@ async def repostar_topico(interaction: discord.Interaction):
     if not primeira_imagem and url_img_1:
         img_bytes = await fetch_bytes(url_img_1)
         if img_bytes:
-            nome_arq = "img_embed.png"
+            import urllib.parse
+            url_path = urllib.parse.urlparse(url_img_1).path
+            ext = os.path.splitext(url_path)[1]
+            if not ext:
+                ext = ".png"
+            nome_arq = f"img_embed{ext}"
             arquivos.insert(0, discord.File(io.BytesIO(img_bytes), filename=nome_arq))
             primeira_imagem = nome_arq
 
@@ -2188,7 +2193,12 @@ async def repostar_topico(interaction: discord.Interaction):
         if not primeira_img_m and url_img_m:
             img_bytes = await fetch_bytes(url_img_m)
             if img_bytes:
-                nome_arq = "img_embed.png"
+                import urllib.parse
+                url_path = urllib.parse.urlparse(url_img_m).path
+                ext = os.path.splitext(url_path)[1]
+                if not ext:
+                    ext = ".png"
+                nome_arq = f"img_embed{ext}"
                 arquivos_m.insert(0, discord.File(io.BytesIO(img_bytes), filename=nome_arq))
                 primeira_img_m = nome_arq
 
