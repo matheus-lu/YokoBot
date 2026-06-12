@@ -493,6 +493,17 @@ class Database:
         cursor = await self.db.execute("SELECT * FROM mensagens_layout WHERE msg_id=?", (msg_id,))
         return await cursor.fetchone()
 
+    async def atualizar_reacoes(self, msg_id: int, reacoes_json: str):
+        if not self.db: await self.connect()
+        try:
+            await self.db.execute(
+                "UPDATE mensagens_layout SET reacoes = ? WHERE msg_id = ?",
+                (reacoes_json, msg_id)
+            )
+            await self.db.commit()
+        except Exception as e:
+            print(f"[Database] Erro ao atualizar reações: {e}")
+
 # ── Auxiliar de query (fora da classe) ────────────────────
 def _hora_menos_1h(horario: str) -> str:
     """Subtrai 1 hora de uma string 'HH:MM'. Usado na janela de verificação."""

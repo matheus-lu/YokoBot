@@ -1199,10 +1199,7 @@ async def reagir_cmd(interaction: discord.Interaction, msg_id: str):
     import json
     try:
         reacoes_json = json.dumps(lista_emojis)
-        await bot.db.execute(
-            "UPDATE mensagens_layout SET reacoes = ? WHERE msg_id = ?",
-            reacoes_json, msg_id_int
-        )
+        await bot.db.atualizar_reacoes(msg_id_int, reacoes_json)
     except Exception as e:
         print(f"Erro ao salvar reações no banco: {e}")
 
