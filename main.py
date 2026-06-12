@@ -1137,7 +1137,7 @@ class AnuncioDestinoView(discord.ui.LayoutView):
         categoria = interaction.guild.get_channel(cat_id)
         
         # Filtra canais de texto ou fórum
-        canais = [c for c in categoria.channels if isinstance(c, (discord.TextChannel, discord.ForumChannel, discord.NewsChannel))][:25]
+        canais = [c for c in categoria.channels if isinstance(c, (discord.TextChannel, discord.ForumChannel))][:25]
         if not canais:
             await interaction.response.send_message("❌ Nenhum canal de texto ou fórum ativo nesta categoria.", ephemeral=True)
             return
@@ -1710,12 +1710,18 @@ class RemandarMensagemModal(Modal):
         if opcao_img == "remover":
             url_img_v2 = None
         elif opcao_img == "pular":
+            att_img_valido = None
             if target_msg.attachments:
+                for a in target_msg.attachments:
+                    if not "sep_anuncio" in a.filename.lower() and not "sep_antes" in a.filename.lower() and not "sep_depois" in a.filename.lower():
+                        att_img_valido = a
+                        break
+            
+            if att_img_valido:
                 try:
-                    att_orig = target_msg.attachments[0]
-                    dados_orig = await asyncio.wait_for(att_orig.read(), timeout=30.0)
-                    nova_imagem = discord.File(io.BytesIO(dados_orig), filename=att_orig.filename)
-                    nome_img = att_orig.filename
+                    dados_orig = await asyncio.wait_for(att_img_valido.read(), timeout=30.0)
+                    nova_imagem = discord.File(io.BytesIO(dados_orig), filename=att_img_valido.filename)
+                    nome_img = att_img_valido.filename
                 except Exception:
                     pass
             elif url_img_v2:
@@ -1842,17 +1848,42 @@ class RemandarMensagemModal(Modal):
             if itens_v2 or view_recriar:
                 kwargs['view'] = view_final
 
-            await canal.send(**kwargs)
+            nova_msg = await canal.send(**kwargs)
 
-            for m in [sep_antes_msg, target_msg, sep_depois_msg]:
-                if m:
+            # --- Confirmação ---
+            class ConfirmacaoRemandarView(discord.ui.View):
+                def __init__(self, inter_original, msg_nova, msg_antigas):
+                    super().__init__(timeout=120)
+                    self.inter_original = inter_original
+                    self.msg_nova = msg_nova
+                    self.msg_antigas = msg_antigas
+
+                @discord.ui.button(label="Confirmar e Apagar Antiga", style=discord.ButtonStyle.success, emoji="✅")
+                async def confirmar(self, inter: discord.Interaction):
+                    for m in self.msg_antigas:
+                        if m:
+                            try:
+                                bot.mensagens_ignorar_delete.add(m.id)
+                                await m.delete()
+                            except Exception:
+                                pass
+                    for child in self.children: child.disabled = True
+                    await inter.response.edit_message(content="✅ **Nova postagem confirmada e postagem antiga apagada!**", view=self)
+
+                @discord.ui.button(label="Cancelar e Apagar Nova", style=discord.ButtonStyle.danger, emoji="🗑️")
+                async def cancelar(self, inter: discord.Interaction):
                     try:
-                        bot.mensagens_ignorar_delete.add(m.id)
-                        await m.delete()
+                        bot.mensagens_ignorar_delete.add(self.msg_nova.id)
+                        await self.msg_nova.delete()
                     except Exception:
                         pass
+                    for child in self.children: child.disabled = True
+                    await inter.response.edit_message(content="❌ **Operação cancelada! A nova mensagem foi apagada e a antiga mantida.**", view=self)
 
-            await interaction.followup.send("Mensagem reenviada com sucesso (V2)!", ephemeral=True)
+            msgs_para_apagar = [sep_antes_msg, target_msg, sep_depois_msg]
+            view_confirma = ConfirmacaoRemandarView(interaction, nova_msg, msgs_para_apagar)
+            await interaction.followup.send("👁️ **Nova mensagem enviada no canal!** Verifique se ficou boa. Confirma a substituição?", view=view_confirma, ephemeral=True)
+
         except discord.HTTPException as e:
             await interaction.followup.send("Erro ao remandar: " + str(e), ephemeral=True)
 
