@@ -2766,6 +2766,10 @@ async def varredura_v2(ctx):
                                 relatorio.append(f"[V2] Msg {m.id} em #{canal.name} -> Titulo: {titulo_status}, Imagem: {imagem_status}, Texto: {texto_status}, Footer: {footer_status}")
                             except Exception as e:
                                 relatorio.append(f"[ERRO V2] Msg {m.id} em #{canal.name} -> Falha ao salvar: {str(e)}")
+                                
+                            if imagem_status == "Nao":
+                                debug_info = f"   [DEBUG V2 IMAGEM] url_img_v2={url_img_v2} | m.attachments={[{'f':a.filename, 'c':a.content_type, 'u':a.url} for a in m.attachments]} | raw_data_att={[{'f':a.get('filename'), 'c':a.get('content_type'), 'u':a.get('url')} for a in raw_data.get('attachments', [])]}"
+                                relatorio.append(debug_info)
             except Exception:
                 pass # Sem permissão para ler o histórico
                 
