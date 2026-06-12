@@ -105,6 +105,14 @@ class Database:
                 imagem          BLOB,
                 imagem_nome     TEXT
             );
+            CREATE TABLE IF NOT EXISTS mensagens_layout (
+                msg_id      INTEGER PRIMARY KEY,
+                canal_id    INTEGER NOT NULL,
+                titulo      TEXT,
+                descricao   TEXT,
+                footer      TEXT,
+                estilo      TEXT DEFAULT 'padrao'
+            );
         """)
         await self.db.commit()
 
@@ -457,6 +465,21 @@ class Database:
         )
         return await cursor.fetchall()
 
+
+    # ── Layouts de Mensagens (V2) ──────────────────────────
+    async def salvar_layout(self, msg_id: int, canal_id: int, titulo: str, descricao: str, footer: str, estilo: str):
+        await self.db.execute(
+            """INSERT INTO mensagens_layout (msg_id, canal_id, titulo, descricao, footer, estilo)
+               VALUES (?, ?, ?, ?, ?, ?)
+               ON CONFLICT(msg_id) DO UPDATE SET
+               titulo=excluded.titulo, descricao=excluded.descricao, footer=excluded.footer, estilo=excluded.estilo""",
+            (msg_id, canal_id, titulo, descricao, footer, estilo)
+        )
+        await self.db.commit()
+
+    async def get_layout(self, msg_id: int):
+        cursor = await self.db.execute("SELECT * FROM mensagens_layout WHERE msg_id=?", (msg_id,))
+        return await cursor.fetchone()
 
 # ── Auxiliar de query (fora da classe) ────────────────────
 def _hora_menos_1h(horario: str) -> str:

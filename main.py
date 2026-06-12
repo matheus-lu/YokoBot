@@ -1960,6 +1960,12 @@ class RemandarMensagemModal(Modal):
                 kwargs['view'] = view_final
 
             nova_msg = await canal.send(**kwargs)
+            
+            # Salvar no DB
+            try:
+                await bot.db.salvar_layout(nova_msg.id, nova_msg.channel.id, titulo_final, desc_final, footer_final, estilo_detectado)
+            except Exception:
+                pass
 
             # --- Confirmação ---
             class ConfirmacaoRemandarView(discord.ui.View):
@@ -2043,7 +2049,21 @@ async def remandar_cmd(interaction: discord.Interaction, id: str):
     embed = target_msg.embeds[0] if target_msg.embeds else None
     modal = RemandarMensagemModal(canal_id=target_msg.channel.id, msg_id=target_msg.id)
     
-    # Extrair texto (suporta V1 embeds e V2 LayoutView)
+    # Extrair texto do banco primeiro (Muito mais preciso)
+    db_layout = None
+    try:
+        db_layout = await bot.db.get_layout(target_msg.id)
+    except Exception:
+        pass
+        
+    if db_layout:
+        modal.titulo_field.default = db_layout["titulo"]
+        modal.descricao_field.default = db_layout["descricao"]
+        modal.footer_field.default = db_layout["footer"]
+        await interaction.response.send_modal(modal)
+        return
+
+    # Fallback (suporta V1 embeds e V2 LayoutView caso não tenha no DB)
     v2_text = ""
     try:
         raw_data = await bot.http.get_message(target_msg.channel.id, target_msg.id)
@@ -2500,3 +2520,103 @@ async def repostar_topico(interaction: discord.Interaction):
 
 
 bot.run(config.TOKEN)
+
+
+@bot.command()
+@commands.is_owner()
+async def varredura_v2(ctx):
+    """(Owner) Varre o servidor para resgatar e salvar layouts antigos no banco."""
+    msg_status = await ctx.send("Iniciando varredura V2 em canais, threads e fóruns...")
+    
+    canais_ignorados = [config.ADM_LOG_CANAL_ID(), config.MUSICA_CANAL_ID()]
+    
+    canais_alvo = []
+    
+    # Text channels
+    for c in ctx.guild.text_channels:
+        if c.id not in canais_ignorados:
+            canais_alvo.append(c)
+            
+    # Voice channels (que têm text chat)
+    for c in ctx.guild.voice_channels:
+        if c.id not in canais_ignorados:
+            canais_alvo.append(c)
+            
+    # Threads ativas
+    for t in ctx.guild.threads:
+        canais_alvo.append(t)
+        
+    # Forum threads
+    for f in ctx.guild.forum_channels:
+        if f.id not in canais_ignorados:
+            for t in f.threads:
+                canais_alvo.append(t)
+                
+    # Varredura
+    total_resgatado = 0
+    
+    for canal in canais_alvo:
+        try:
+            async for m in canal.history(limit=500):
+                if m.author.id == bot.user.id and m.components:
+                    # Tem components! Vamos verificar se é Layout V2 e tentar extrair para o banco
+                    raw_data = await bot.http.get_message(canal.id, m.id)
+                    comps = raw_data.get('components', [])
+                    if not comps: continue
+                    
+                    estilo_detectado = "padrao"
+                    titulo = ""
+                    footer = ""
+                    
+                    # Detectar estilo
+                    for c in comps[:2]:
+                        if c.get('type') == 14 and 'Ondrakos' in str(c.get('text', '')):
+                            estilo_detectado = "invertido"
+                            break
+                            
+                    # Extrator de fallback (velho estilo) para montar o texto
+                    def extrair_v2_local(obj):
+                        t = ""
+                        if isinstance(obj, dict):
+                            if obj.get('type') in [2, 3, 5, 6, 7, 8]:
+                                pass
+                            else:
+                                for key in ['text', 'content', 'value', 'description']:
+                                    if key in obj and isinstance(obj[key], str) and len(obj[key].strip()) > 0:
+                                        t += obj[key] + "\n"
+                            for k, v in obj.items():
+                                t += extrair_v2_local(v)
+                        elif isinstance(obj, list):
+                            for i in obj:
+                                t += extrair_v2_local(i)
+                        return t
+                        
+                    texto = extrair_v2_local(raw_data).strip()
+                    
+                    if not texto:
+                        continue
+                        
+                    linhas = [L.strip() for L in texto.split('\n') if L.strip()]
+                    if linhas and linhas[0].startswith("**") and linhas[0].endswith("**"):
+                        titulo = linhas[0].strip("*")
+                        linhas = linhas[1:]
+                    elif linhas and linhas[0].startswith("**"):
+                        titulo = linhas[0].replace("**", "")
+                        linhas = linhas[1:]
+                        
+                    if linhas and 'Ondrakos' in linhas[-1]:
+                        footer = linhas[-1].replace("-# ", "").strip()
+                        linhas = linhas[:-1]
+                        
+                    descricao = "\n".join(linhas)[:4000]
+                    
+                    # Salva no DB
+                    try:
+                        await bot.db.salvar_layout(m.id, canal.id, titulo[:256], descricao, footer[:2048], estilo_detectado)
+                        total_resgatado += 1
+                    except Exception:
+                        pass
+        except Exception:
+            pass # Sem permissão para ler o histórico, ou canal deletado
+            
+    await msg_status.edit(content=f"✅ Varredura concluída! {total_resgatado} mensagens com Layout V2 resgatadas e salvas no banco de dados com sucesso.")
