@@ -42,16 +42,17 @@ async def send_layout(request):
         titulo = data.get('titulo', '')
         mensagem = data.get('mensagem', '')
         imagem_url = data.get('imagem_url', '')
+        blocos = data.get('blocos', [])
         
-        if not canal_id or not titulo or not mensagem:
-            return web.json_response({"status": "error", "message": "Canal, título e mensagem são obrigatórios."}, status=400)
+        if not canal_id or (not titulo and not mensagem and not blocos):
+            return web.json_response({"status": "error", "message": "Canal e conteúdo são obrigatórios."}, status=400)
             
         canal = bot.get_channel(int(canal_id))
         if not canal:
             return web.json_response({"status": "error", "message": "Canal não encontrado no Discord do bot."}, status=404)
             
         fut = asyncio.get_running_loop().create_future()
-        bot.dispatch('api_send_layout', canal, tipo, titulo, mensagem, imagem_url, fut)
+        bot.dispatch('api_send_layout', canal, tipo, titulo, mensagem, imagem_url, blocos, fut)
         
         # Wait for main.py to process it
         msg_id = await fut

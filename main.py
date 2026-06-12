@@ -2909,6 +2909,31 @@ class AvisoChatButton(Button):
         except Exception as e:
             await interaction.followup.send(f"❌ Erro ao atribuir cargo: {e}", ephemeral=True)
 
+class DynamicLayout(discord.ui.LayoutView):
+    def __init__(self, blocos, files, footer, tipo):
+        super().__init__(timeout=None)
+        itens = []
+        for b in blocos:
+            if b['type'] == 'texto':
+                itens.append(discord.ui.TextDisplay(b['content']))
+            elif b['type'] == 'titulo':
+                titulo_limpo = b['content'].replace('**', '')
+                itens.append(discord.ui.TextDisplay(f"**{titulo_limpo}**" if not titulo_limpo.startswith("**") else titulo_limpo))
+            elif b['type'] == 'separador':
+                itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+            elif b['type'] == 'imagem':
+                itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem(b['url'])))
+        
+        if footer:
+            itens.append(discord.ui.TextDisplay(f"-# {footer}" if not footer.startswith("-#") else footer))
+            
+        if tipo == 'aviso-chat':
+            row = discord.ui.ActionRow(AvisoChatButton(is_accept=True), AvisoChatButton(is_accept=False))
+            self.add_item(discord.ui.Container(*itens, row, accent_color=DORORO_COLOR.value))
+        else:
+            self.add_item(discord.ui.Container(*itens, accent_color=DORORO_COLOR.value))
+        self._files = files
+
 class AvisoChatLayout(discord.ui.LayoutView):
     def __init__(self, titulo: str, mensagem: str, footer: str, imagem_bytes: bytes = None, filename: str = None, sep_bytes: bytes = None, sep_filename: str = None):
         super().__init__(timeout=None)
@@ -3064,7 +3089,7 @@ async def aviso_chat_cmd(interaction: discord.Interaction, canal: discord.TextCh
 # Colocaremos isso no on_ready do bot: bot.add_view(AvisoChatLayoutVazio())
 
 @bot.event
-async def on_api_send_layout(canal, tipo, titulo, mensagem, imagem_url, fut):
+async def on_api_send_layout(canal, tipo, titulo, mensagem, imagem_url, blocos, fut):
     try:
         import aiohttp
         imagem_bytes = None
@@ -3089,14 +3114,32 @@ async def on_api_send_layout(canal, tipo, titulo, mensagem, imagem_url, fut):
         except:
             pass
 
-        if tipo == 'aviso-chat':
-            view = AvisoChatLayout(titulo=titulo, mensagem=mensagem, footer="© Ondrakos · 水の竜", imagem_bytes=imagem_bytes, filename=filename, sep_bytes=sep_bytes, sep_filename=sep_filename)
-        elif tipo == 'anuncio':
-            view = AnuncioLayout(titulo=titulo, mensagem=mensagem, footer="© Ondrakos · 水の竜", imagem_bytes=imagem_bytes, filename=filename, sep_bytes=sep_bytes, sep_filename=sep_filename)
+        arquivos = []
+        if imagem_bytes:
+            arquivos.append(discord.File(io.BytesIO(imagem_bytes), filename=filename))
+        if sep_bytes:
+            arquivos.append(discord.File(io.BytesIO(sep_bytes), filename=sep_filename))
+
+        if blocos:
+            # Novo sistema dinâmico de blocos!
+            view = DynamicLayout(blocos=blocos, files=arquivos, footer="© Ondrakos · 水の竜", tipo=tipo)
+            if arquivos:
+                msg = await canal.send(files=arquivos, view=view)
+            else:
+                msg = await canal.send(view=view)
         else:
-            view = AvisoLayout(titulo=titulo, mensagem=mensagem, footer="© Ondrakos · 水の竜", imagem_bytes=imagem_bytes, filename=filename, sep_bytes=sep_bytes, sep_filename=sep_filename)
-            
-        msg = await canal.send(view=view)
+            if tipo == 'aviso-chat':
+                view = AvisoChatLayout(titulo=titulo, mensagem=mensagem, footer="© Ondrakos · 水の竜", imagem_bytes=imagem_bytes, filename=filename, sep_bytes=sep_bytes, sep_filename=sep_filename)
+            elif tipo == 'anuncio':
+                view = AvisoLayout(titulo=titulo, mensagem=mensagem, footer="© Ondrakos · 水の竜", imagem_bytes=imagem_bytes, filename=filename, sep_bytes=sep_bytes, sep_filename=sep_filename)
+            else:
+                view = AvisoLayout(titulo=titulo, mensagem=mensagem, footer="© Ondrakos · 水の竜", imagem_bytes=imagem_bytes, filename=filename, sep_bytes=sep_bytes, sep_filename=sep_filename)
+                
+            if arquivos:
+                msg = await canal.send(files=arquivos, view=view)
+            else:
+                msg = await canal.send(view=view)
+        
         
         try:
             await bot.db.salvar_layout(
