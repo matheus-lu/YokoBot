@@ -59,7 +59,7 @@ class XPCog(commands.Cog):
     async def on_message(self, message):
         if message.author.bot or not message.guild:
             return
-        if message.channel.id != config.CONTADOR_MEMBROS_CANAL_ID:
+        if message.channel.id != config.CONTADOR_MEMBROS_CANAL_ID():
             return
 
         uid = message.author.id
@@ -247,7 +247,7 @@ class XPCog(commands.Cog):
                     + "** | " + str(r["xp"]) + " XP"
                 )
 
-            canal = self.bot.get_channel(config.CONTADOR_MEMBROS_CANAL_ID)
+            canal = self.bot.get_channel(config.CONTADOR_MEMBROS_CANAL_ID())
             if canal:
                 embed = discord.Embed(
                     title="🏆 Pódio do Dia",

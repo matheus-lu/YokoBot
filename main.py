@@ -2029,7 +2029,7 @@ async def som_cmd(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
 # ── Iniciar o Bot ──────────────────────────────────────────
-bot.run(config.TOKEN)
+
 
 @bot.tree.command(name="repostar-topico", description="[Admin] Clona o tópico atual para V2")
 @app_commands.checks.has_permissions(administrator=True)
@@ -2186,3 +2186,4 @@ async def repostar_topico(interaction: discord.Interaction):
 
     await interaction.followup.send(f"✅ Tópico clonado para V2 com sucesso! [Ver novo tópico]({novo_topico.message.jump_url})")
 
+bot.run(config.TOKEN)
