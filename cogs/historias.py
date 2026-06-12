@@ -9,7 +9,7 @@ from discord import app_commands
 
 # ── IDs ────────────────────────────────────────────────────
 CARGO_HISTORIA_ID = 1507789725547761871
-FORUM_TOPICO_ID = 1514277999111962695
+FORUM_TOPICO_ID = 1514918760190836798
 
 # ── Cores ──────────────────────────────────────────────────
 COR_CONTAINER = discord.Color.from_rgb(31, 139, 76)
