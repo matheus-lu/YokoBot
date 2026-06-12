@@ -2937,6 +2937,64 @@ class DynamicLayout(discord.ui.LayoutView):
             self.add_item(discord.ui.Container(*itens, accent_color=DORORO_COLOR.value))
         self._files = files
 
+class AvisoPadraoLayout(discord.ui.LayoutView):
+    def __init__(self, titulo: str, mensagem: str, footer: str, imagem_bytes: bytes = None, filename: str = None, sep_bytes: bytes = None, sep_filename: str = None):
+        super().__init__(timeout=None)
+        itens = []
+        if imagem_bytes and filename:
+            itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem(f"attachment://{filename}")))
+            itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+            
+        titulo_limpo = titulo.replace('**', '')
+        if '|' in titulo_limpo:
+            partes = titulo_limpo.split('|', 2)
+            if len(partes) >= 2:
+                meio = partes[1]
+                start_space = len(meio) - len(meio.lstrip())
+                end_space = len(meio) - len(meio.rstrip())
+                esq = meio[:start_space]
+                
+                if end_space > 0:
+                    dir_esp = meio[-end_space:]
+                    centro = meio[start_space:-end_space]
+                else:
+                    dir_esp = ""
+                    centro = meio[start_space:]
+                
+                meio_formatado = f"{esq}**{centro}**{dir_esp}" if centro else meio
+                
+                if len(partes) == 3:
+                    titulo_formatado = f"{partes[0]}|{meio_formatado}|{partes[2]}"
+                else:
+                    titulo_formatado = f"{partes[0]}|{meio_formatado}"
+        else:
+            start_space = len(titulo_limpo) - len(titulo_limpo.lstrip())
+            end_space = len(titulo_limpo) - len(titulo_limpo.rstrip())
+            esq = titulo_limpo[:start_space]
+            if end_space > 0:
+                dir_esp = titulo_limpo[-end_space:]
+                centro = titulo_limpo[start_space:-end_space]
+            else:
+                dir_esp = ""
+                centro = titulo_limpo[start_space:]
+            titulo_formatado = f"{esq}**{centro}**{dir_esp}" if centro else titulo_limpo
+
+        itens.extend([
+            discord.ui.TextDisplay(titulo_formatado),
+            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
+            discord.ui.TextDisplay(mensagem),
+            discord.ui.Separator(spacing=discord.SeparatorSpacing.small)
+        ])
+        
+        if sep_bytes and sep_filename:
+            itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem(f"attachment://{sep_filename}")))
+            itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+            
+        if footer:
+            itens.append(discord.ui.TextDisplay(f"-# {footer}" if not footer.startswith("-#") else footer))
+            
+        self.add_item(discord.ui.Container(*itens, accent_color=DORORO_COLOR.value))
+
 class AvisoChatLayout(discord.ui.LayoutView):
     def __init__(self, titulo: str, mensagem: str, footer: str, imagem_bytes: bytes = None, filename: str = None, sep_bytes: bytes = None, sep_filename: str = None):
         super().__init__(timeout=None)
@@ -3133,8 +3191,6 @@ async def on_api_send_layout(canal, tipo, titulo, mensagem, imagem_url, blocos, 
                                 if resp.status == 200:
                                     img_b = await resp.read()
                                     fname = f"block_{i}.png"
-                                    if b['url'].split('/')[-1].endswith(('.png', '.jpg', '.jpeg', '.gif')):
-                                        fname = f"block_{i}_{b['url'].split('/')[-1]}"
                                     b['filename'] = fname
                                     arquivos.append(discord.File(io.BytesIO(img_b), filename=fname))
                     except Exception as e:
@@ -3150,10 +3206,8 @@ async def on_api_send_layout(canal, tipo, titulo, mensagem, imagem_url, blocos, 
         else:
             if tipo == 'aviso-chat':
                 view = AvisoChatLayout(titulo=titulo, mensagem=mensagem, footer="© Ondrakos · 水の竜", imagem_bytes=imagem_bytes, filename=filename, sep_bytes=sep_bytes, sep_filename=sep_filename)
-            elif tipo == 'anuncio':
-                view = AvisoLayout(titulo=titulo, mensagem=mensagem, footer="© Ondrakos · 水の竜", imagem_bytes=imagem_bytes, filename=filename, sep_bytes=sep_bytes, sep_filename=sep_filename)
             else:
-                view = AvisoLayout(titulo=titulo, mensagem=mensagem, footer="© Ondrakos · 水の竜", imagem_bytes=imagem_bytes, filename=filename, sep_bytes=sep_bytes, sep_filename=sep_filename)
+                view = AvisoPadraoLayout(titulo=titulo, mensagem=mensagem, footer="© Ondrakos · 水の竜", imagem_bytes=imagem_bytes, filename=filename, sep_bytes=sep_bytes, sep_filename=sep_filename)
                 
             if arquivos:
                 msg = await canal.send(files=arquivos, view=view)
@@ -3164,12 +3218,14 @@ async def on_api_send_layout(canal, tipo, titulo, mensagem, imagem_url, blocos, 
         try:
             await bot.db.salvar_layout(
                 msg_id=msg.id,
-                channel_id=canal.id,
-                tipo=tipo,
-                estilo='v2',
+                canal_id=canal.id,
                 titulo=titulo,
-                mensagem=mensagem,
-                imagem_bytes=imagem_bytes
+                descricao=mensagem,
+                footer="© Ondrakos · 水の竜",
+                estilo='v2',
+                imagem_bytes=imagem_bytes,
+                imagem_nome=filename,
+                tipo=tipo
             )
         except Exception as e:
             print(f"Erro ao salvar bd no api_send_layout: {e}")
