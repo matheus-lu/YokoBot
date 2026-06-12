@@ -120,6 +120,8 @@ class SignosLayout(discord.ui.LayoutView):
             discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
             discord.ui.TextDisplay(EMBED_DESC),
             discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
+            row1, row2, row3,
+            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
         ]
         
         if tem_sep:
@@ -128,8 +130,6 @@ class SignosLayout(discord.ui.LayoutView):
             
         itens.extend([
             discord.ui.TextDisplay("-# 十二支 — Juunishi 星座"),
-            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
-            row1, row2, row3
         ])
 
         self.add_item(discord.ui.Container(*itens, accent_color=discord.Color.from_rgb(31, 139, 76)))
@@ -147,6 +147,8 @@ class SignosLayoutSemImagem(discord.ui.LayoutView):
             discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
             discord.ui.TextDisplay(EMBED_DESC),
             discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
+            row1, row2, row3,
+            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
         ]
         
         if tem_sep:
@@ -155,8 +157,6 @@ class SignosLayoutSemImagem(discord.ui.LayoutView):
             
         itens.extend([
             discord.ui.TextDisplay("-# 十二支 — Juunishi 星座"),
-            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
-            row1, row2, row3
         ])
 
         self.add_item(discord.ui.Container(*itens, accent_color=discord.Color.from_rgb(31, 139, 76)))
