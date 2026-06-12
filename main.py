@@ -2571,7 +2571,7 @@ async def repostar_topico(interaction: discord.Interaction):
 
 
 @bot.command()
-@commands.is_owner()
+@commands.has_permissions(administrator=True)
 async def varredura_v2(ctx):
     """(Owner) Varre o servidor para resgatar e salvar layouts antigos no banco."""
     msg_status = await ctx.send("Iniciando varredura V2 em canais, threads e fóruns...")
@@ -2600,7 +2600,7 @@ async def varredura_v2(ctx):
         canais_alvo.append(t)
         
     # Forum threads
-    for f in ctx.guild.forum_channels:
+    for f in ctx.guild.forums:
         if f.id not in canais_ignorados:
             for t in f.threads:
                 canais_alvo.append(t)
