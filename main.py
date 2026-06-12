@@ -739,6 +739,8 @@ class AnuncioModal(Modal):
                 itens_anuncio.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
                 itens_anuncio.append(discord.ui.TextDisplay("-# © Ondrakos · 水の竜"))
             else: # invertido
+                itens_anuncio.append(discord.ui.TextDisplay("-# © Ondrakos · 水の竜"))
+                itens_anuncio.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
                 if dados.get("divisores", True) and os.path.exists("sep_anuncio.png"):
                     arquivos.append(discord.File("sep_anuncio.png", filename="sep_anuncio_bot.png"))
                     itens_anuncio.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://sep_anuncio_bot.png")))
@@ -750,8 +752,6 @@ class AnuncioModal(Modal):
                     itens_anuncio.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
                     itens_anuncio.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://" + primeira_imagem)))
                     
-                itens_anuncio.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
-                itens_anuncio.append(discord.ui.TextDisplay("-# © Ondrakos · 水の竜"))
             view_final = discord.ui.LayoutView()
             view_final.add_item(discord.ui.Container(*itens_anuncio, accent_color=DORORO_COLOR))
             if view_presenca:
