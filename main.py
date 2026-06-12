@@ -2192,15 +2192,26 @@ async def repostar_topico(interaction: discord.Interaction):
                 arquivos_m.insert(0, discord.File(io.BytesIO(img_bytes), filename=nome_arq))
                 primeira_img_m = nome_arq
 
-        # Adiciona o separador por padrão em todas as mensagens seguintes
-        # Mas NÃO adiciona ele na MediaGallery, para o Discord renderizar ele solto acima do V2!
-        if os.path.exists("midia/sep_anuncio.png"):
-            arquivos_m.insert(0, discord.File("midia/sep_anuncio.png", filename="sep_anuncio.png"))
-
-        # Apenas a imagem principal (brasão) entra na MediaGallery,
-        # assim o Discord não comprime as duas imagens num grid quadrado!
+        # Reordenando a montagem do itens_m
+        novos_itens = []
+        
+        # 1. Separador no topo (em sua própria MediaGallery isolada)
+        if os.path.exists("sep_anuncio.png"):
+            arquivos_m.insert(0, discord.File("sep_anuncio.png", filename="sep_anuncio.png"))
+            novos_itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://sep_anuncio.png")))
+            
+        # 2. Imagem Principal / Brasão (em outra MediaGallery para não fazer grid)
         if primeira_img_m:
-            itens_m.insert(0, discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://" + primeira_img_m)))
+            # Adiciona um espacamento entre o separador e o brasao se ambos existirem
+            if os.path.exists("sep_anuncio.png"):
+                novos_itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+            novos_itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://" + primeira_img_m)))
+            novos_itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+            
+        # 3. Textos (já estavam em itens_m)
+        novos_itens.extend(itens_m)
+        
+        itens_m = novos_itens
 
         view_m = discord.ui.LayoutView()
         if itens_m:
