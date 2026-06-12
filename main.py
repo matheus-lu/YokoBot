@@ -2868,13 +2868,13 @@ async def varredura_v2(ctx):
 
 
 
-CARGO_AVISO_CHAT_ID = 123456789012345678  # Substitua pelo ID real do cargo quando tiver
+CARGO_AVISO_CHAT_ID = 1515020296434745364
 
 class AvisoChatButton(Button):
     def __init__(self, is_accept: bool):
         custom_id = "aviso_chat_aceitar" if is_accept else "aviso_chat_recusar"
         label = "Aceitar" if is_accept else "Recusar"
-        emoji = "✅" if is_accept else "❌"
+        emoji = "<:_positivo:1507462699699929268>" if is_accept else "<:_negativo:1507462725159358597>"
         style = discord.ButtonStyle.success if is_accept else discord.ButtonStyle.danger
         super().__init__(label=label, style=style, emoji=emoji, custom_id=custom_id)
         self.is_accept = is_accept
