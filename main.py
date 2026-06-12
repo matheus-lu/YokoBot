@@ -2914,7 +2914,7 @@ class AvisoChatLayout(discord.ui.LayoutView):
             itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
             
         itens.extend([
-            discord.ui.TextDisplay(f"# {titulo.replace('**', '')}"),
+            discord.ui.TextDisplay(f"{titulo.replace('**', '')}"),
             discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
             discord.ui.TextDisplay(mensagem),
             discord.ui.Separator(spacing=discord.SeparatorSpacing.small)
