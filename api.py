@@ -44,6 +44,18 @@ async def send_layout(request):
         imagem_url = data.get('imagem_url', '')
         blocos = data.get('blocos', [])
         
+        if not titulo and blocos:
+            for b in blocos:
+                if b.get('type') == 'titulo':
+                    titulo = b.get('content', '')
+                    break
+                    
+        if not mensagem and blocos:
+            for b in blocos:
+                if b.get('type') == 'texto':
+                    mensagem = b.get('content', '')
+                    break
+        
         if not canal_id or (not titulo and not mensagem and not blocos):
             return web.json_response({"status": "error", "message": "Canal e conteúdo são obrigatórios."}, status=400)
             
