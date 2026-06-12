@@ -6,6 +6,5 @@ Pillow
 PyNaCl
 beautifulsoup4
 requests
-davepy
 spotipy
 aiohttp_cors
