@@ -1868,17 +1868,11 @@ class RemandarMensagemModal(Modal):
             if emb.image and emb.image.url and url_img_v2 is None:
                 url_img_v2 = emb.image.url
 
-        if titulo_final:
-            texto_v2 += f"**{titulo_final}**\n\n"
-        if desc_final:
-            texto_v2 += f"{desc_final}\n\n"
-            
         if target_msg.embeds:
             for field in target_msg.embeds[0].fields:
-                texto_v2 += f"**{field.name}**\n{field.value}\n\n"
-                
-        # Removido: o footer_final agora e adicionado separadamente no Layout
-        texto_v2 = texto_v2.strip()
+                desc_final += f"\n\n**{field.name}**\n{field.value}"
+        
+        desc_final = desc_final.strip()
 
         # Processar imagem
         nova_imagem = None
@@ -1997,7 +1991,13 @@ class RemandarMensagemModal(Modal):
         itens_v2 = []
         arquivos_enviar = []
         import os
-        
+        # Helper para carregar separador
+        sep_file = None
+        for f in ["sep_anuncio.png", "img/sep_anuncio.png", "IMG/sep_anuncio.png"]:
+            if os.path.exists(f):
+                sep_file = discord.File(f, filename="sep_anuncio_bot.png")
+                break
+
         # Montar um layout V2 bonito e padronizado
         if estilo_detectado == "padrao":
             if nova_imagem and nome_img:
@@ -2005,16 +2005,39 @@ class RemandarMensagemModal(Modal):
                 itens_v2.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://" + nome_img)))
                 itens_v2.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
 
-            if texto_v2:
-                itens_v2.append(discord.ui.TextDisplay(texto_v2))
-                
-            if (sep_depois_msg or teve_separador) and os.path.exists("sep_anuncio.png"):
-                arquivos_enviar.append(discord.File("sep_anuncio.png", filename="sep_anuncio_bot.png"))
+            if titulo_final:
+                titulo_limpo = titulo_final.replace('**', '')
+                if '|' in titulo_limpo:
+                    partes = titulo_limpo.split('|', 2)
+                    if len(partes) >= 2:
+                        meio = partes[1]
+                        start_space = len(meio) - len(meio.lstrip())
+                        end_space = len(meio) - len(meio.rstrip())
+                        esq = meio[:start_space]
+                        dir_esp = meio[-end_space:] if end_space > 0 else ""
+                        centro = meio[start_space:-end_space] if end_space > 0 else meio[start_space:]
+                        meio_formatado = f"{esq}**{centro}**{dir_esp}" if centro else meio
+                        titulo_formatado = f"{partes[0]}|{meio_formatado}|{partes[2]}" if len(partes) == 3 else f"{partes[0]}|{meio_formatado}"
+                else:
+                    start_space = len(titulo_limpo) - len(titulo_limpo.lstrip())
+                    end_space = len(titulo_limpo) - len(titulo_limpo.rstrip())
+                    esq = titulo_limpo[:start_space]
+                    dir_esp = titulo_limpo[-end_space:] if end_space > 0 else ""
+                    centro = titulo_limpo[start_space:-end_space] if end_space > 0 else titulo_limpo[start_space:]
+                    titulo_formatado = f"{esq}**{centro}**{dir_esp}" if centro else titulo_limpo
+                itens_v2.append(discord.ui.TextDisplay(titulo_formatado))
                 itens_v2.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+            
+            if desc_final:
+                itens_v2.append(discord.ui.TextDisplay(desc_final))
+                itens_v2.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+                
+            if (sep_depois_msg or teve_separador) and sep_file:
+                arquivos_enviar.append(sep_file)
                 itens_v2.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://sep_anuncio_bot.png")))
+                itens_v2.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
                 
             if footer_final:
-                itens_v2.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
                 itens_v2.append(discord.ui.TextDisplay(f"-# {footer_final}"))
                 
         else: # invertido
@@ -2022,13 +2045,17 @@ class RemandarMensagemModal(Modal):
                 itens_v2.append(discord.ui.TextDisplay(f"-# {footer_final}"))
                 itens_v2.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
                 
-            if (sep_depois_msg or teve_separador) and os.path.exists("sep_anuncio.png"):
-                arquivos_enviar.append(discord.File("sep_anuncio.png", filename="sep_anuncio_bot.png"))
+            if (sep_depois_msg or teve_separador) and sep_file:
+                arquivos_enviar.append(sep_file)
                 itens_v2.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://sep_anuncio_bot.png")))
                 itens_v2.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
                 
-            if texto_v2:
-                itens_v2.append(discord.ui.TextDisplay(texto_v2))
+            if titulo_final:
+                itens_v2.append(discord.ui.TextDisplay(f"**{titulo_final}**"))
+                itens_v2.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+                
+            if desc_final:
+                itens_v2.append(discord.ui.TextDisplay(desc_final))
                 
             if nova_imagem and nome_img:
                 arquivos_enviar.append(nova_imagem)
