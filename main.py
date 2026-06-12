@@ -113,6 +113,7 @@ COGS_INICIAIS = [
     "cogs.ia_jornalista",
     "cogs.setup",
     "cogs.signos",
+    "cogs.aviso_chat",
     "cogs.verificacao",
     "cogs.eventos",
     "cogs.calendario",
@@ -1379,6 +1380,9 @@ async def on_ready():
     except Exception as e:
         print(f"Aviso: nao foi possivel sincronizar commands: {e}")
 
+    import api
+    bot.loop.create_task(api.start_server(bot))
+    
     # Registrar todos os membros existentes no banco de XP + limpar quem saiu
     for guild in bot.guilds:
         membros_humanos = [m.id for m in guild.members if not m.bot]
