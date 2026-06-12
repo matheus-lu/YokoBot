@@ -1147,6 +1147,68 @@ async def postagem_cmd(interaction: discord.Interaction):
     await interaction.response.send_message(view=PostagemDestinoView(interaction), ephemeral=True)
 
 
+@bot.tree.command(name="reagir", description="Faz o bot copiar e reagir com as mesmas reações de uma mensagem — Ondrakos")
+@app_commands.checks.has_permissions(administrator=True)
+async def reagir_cmd(interaction: discord.Interaction, msg_id: str):
+    await interaction.response.defer(ephemeral=True)
+    try:
+        msg_id_int = int(msg_id.strip())
+    except ValueError:
+        return await interaction.followup.send("❌ ID da mensagem inválido.")
+
+    mensagem = None
+    canal_encontrado = None
+
+    canais_alvo = []
+    for c in interaction.guild.text_channels:
+        canais_alvo.append(c)
+    for f in interaction.guild.forums:
+        for t in f.threads:
+            canais_alvo.append(t)
+
+    for c in canais_alvo:
+        try:
+            m = await c.fetch_message(msg_id_int)
+            mensagem = m
+            canal_encontrado = c
+            break
+        except discord.NotFound:
+            continue
+        except discord.Forbidden:
+            continue
+        except Exception:
+            continue
+
+    if not mensagem:
+        return await interaction.followup.send("❌ Mensagem não encontrada no servidor (Verifique se o ID está correto).")
+
+    if not mensagem.reactions:
+        return await interaction.followup.send("⚠️ Esta mensagem não possui nenhuma reação no momento para eu copiar.")
+
+    adicionadas = 0
+    lista_emojis = []
+    for r in mensagem.reactions:
+        try:
+            await mensagem.add_reaction(r.emoji)
+            lista_emojis.append(str(r.emoji))
+            adicionadas += 1
+        except Exception as e:
+            print(f"Erro ao adicionar reação {r.emoji}: {e}")
+
+    # Atualiza as reações no banco de dados, se a mensagem já estiver salva lá
+    import json
+    try:
+        reacoes_json = json.dumps(lista_emojis)
+        await bot.db.execute(
+            "UPDATE mensagens_layout SET reacoes = ? WHERE msg_id = ?",
+            reacoes_json, msg_id_int
+        )
+    except Exception as e:
+        print(f"Erro ao salvar reações no banco: {e}")
+
+    await interaction.followup.send(f"✅ Reagi com sucesso com {adicionadas} reações na mensagem e atualizei o banco de dados!")
+    
+
 def _sep_file():
     """Retorna discord.File com o separador se existir na pasta do bot."""
     import os
