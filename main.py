@@ -2739,12 +2739,23 @@ async def varredura_v2(ctx):
                                     imagem_status = "Sim"
                                     
                             # Se não achou (ou se for attachment://), procurar nos attachments da mensagem!
-                            if img_bytes is None and m.attachments:
-                                for att in m.attachments:
-                                    if 'sep' not in att.filename.lower() and att.content_type and att.content_type.startswith('image'):
-                                        img_bytes = await fetch_image(att.url)
+                            if img_bytes is None:
+                                arquivos_buscados = []
+                                if m.attachments:
+                                    arquivos_buscados.extend([{'url': a.url, 'filename': a.filename, 'content_type': a.content_type} for a in m.attachments])
+                                if not arquivos_buscados and 'attachments' in raw_data:
+                                    arquivos_buscados.extend(raw_data['attachments'])
+                                    
+                                for att in arquivos_buscados:
+                                    fname = att.get('filename', '').lower()
+                                    ctype = att.get('content_type', '')
+                                    if 'sep' not in fname and (
+                                        (ctype and ctype.startswith('image')) or 
+                                        fname.endswith(('.png', '.jpg', '.jpeg', '.webp', '.gif'))
+                                    ):
+                                        img_bytes = await fetch_image(att['url'])
                                         if img_bytes:
-                                            img_nome = att.filename
+                                            img_nome = att.get('filename', 'imagem_v2.png')
                                             imagem_status = "Sim"
                                             break
                             
