@@ -3176,6 +3176,36 @@ async def aviso_chat_cmd(interaction: discord.Interaction, canal: discord.TextCh
     modal = AvisoChatModal(canal=canal_destino)
     await interaction.response.send_modal(modal)
 
+@bot.tree.command(name="varredura_freegames", description="Aplica os emojis nas mensagens antigas do canal freegames")
+@app_commands.checks.has_permissions(administrator=True)
+async def varredura_freegames_cmd(interaction: discord.Interaction, limite: int = 50):
+    await interaction.response.defer(ephemeral=True)
+    canal = bot.get_channel(1507724879904903248)
+    if not canal:
+        return await interaction.followup.send("❌ Canal freegames (1507724879904903248) não encontrado!")
+        
+    emojis = [
+        "<:_verificadoverde:1507463200642171142>",
+        "<a:_pixellovegreen:1507139369188855878>",
+        "<a:_sinosfloridos:1507143271263244299>",
+        "<a:_brilha:1508358170844598272>"
+    ]
+    
+    count = 0
+    try:
+        async for msg in canal.history(limit=limite):
+            for emoji in emojis:
+                try:
+                    await msg.add_reaction(emoji)
+                except Exception:
+                    pass
+            count += 1
+            await asyncio.sleep(0.5)
+    except Exception as e:
+        return await interaction.followup.send(f"❌ Erro na varredura: {e}")
+        
+    await interaction.followup.send(f"✅ Varredura completa! Reações aplicadas nas últimas {count} mensagens do freegames.")
+
 # Adicionar a view vazia para persistência:
 # Colocaremos isso no on_ready do bot: bot.add_view(AvisoChatLayoutVazio())
 
