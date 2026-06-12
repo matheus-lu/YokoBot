@@ -35,6 +35,9 @@ class Database:
             ("calendario_lembretes", "imagem",       "BLOB"),
             ("calendario_lembretes", "imagem_nome",  "TEXT"),
             ("mensagens_layout", "reacoes", "TEXT"),
+            ("mensagens_layout", "imagem_bytes", "BLOB"),
+            ("mensagens_layout", "imagem_nome", "TEXT"),
+            ("mensagens_layout", "tipo", "TEXT"),
         ]
         for tabela, coluna, tipo in migracoes:
             try:
@@ -113,7 +116,10 @@ class Database:
                 descricao   TEXT,
                 footer      TEXT,
                 estilo      TEXT DEFAULT 'padrao',
-                reacoes     TEXT
+                reacoes     TEXT,
+                imagem_bytes BLOB,
+                imagem_nome  TEXT,
+                tipo         TEXT DEFAULT 'anuncio'
             );
         """)
         await self.db.commit()
@@ -469,13 +475,17 @@ class Database:
 
 
     # ── Layouts de Mensagens (V2) ──────────────────────────
-    async def salvar_layout(self, msg_id: int, canal_id: int, titulo: str, descricao: str, footer: str, estilo: str, reacoes: str = None):
+    async def salvar_layout(self, msg_id: int, canal_id: int, titulo: str, descricao: str, footer: str, estilo: str, reacoes: str = None, imagem_bytes: bytes = None, imagem_nome: str = None, tipo: str = 'anuncio'):
         await self.db.execute(
-            """INSERT INTO mensagens_layout (msg_id, canal_id, titulo, descricao, footer, estilo, reacoes)
-               VALUES (?, ?, ?, ?, ?, ?, ?)
+            """INSERT INTO mensagens_layout (msg_id, canal_id, titulo, descricao, footer, estilo, reacoes, imagem_bytes, imagem_nome, tipo)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                ON CONFLICT(msg_id) DO UPDATE SET
-               titulo=excluded.titulo, descricao=excluded.descricao, footer=excluded.footer, estilo=excluded.estilo, reacoes=COALESCE(excluded.reacoes, mensagens_layout.reacoes)""",
-            (msg_id, canal_id, titulo, descricao, footer, estilo, reacoes)
+               titulo=excluded.titulo, descricao=excluded.descricao, footer=excluded.footer, estilo=excluded.estilo, 
+               reacoes=COALESCE(excluded.reacoes, mensagens_layout.reacoes),
+               imagem_bytes=COALESCE(excluded.imagem_bytes, mensagens_layout.imagem_bytes),
+               imagem_nome=COALESCE(excluded.imagem_nome, mensagens_layout.imagem_nome),
+               tipo=COALESCE(excluded.tipo, mensagens_layout.tipo)""",
+            (msg_id, canal_id, titulo, descricao, footer, estilo, reacoes, imagem_bytes, imagem_nome, tipo)
         )
         await self.db.commit()
 

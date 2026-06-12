@@ -829,6 +829,20 @@ class AnuncioModal(Modal):
             if eh_evento:
                 anuncio_presencas[msg_anuncio.id] = {"confirmados": {}, "ausentes": {}}
 
+            img_bytes = None
+            if primeira_imagem:
+                for a in arquivos:
+                    if a.filename == primeira_imagem:
+                        a.fp.seek(0)
+                        img_bytes = a.fp.read()
+                        a.fp.seek(0)
+                        break
+                        
+            try:
+                await bot.db.salvar_layout(msg_anuncio.id, canal_destino.id, dados['titulo'], dados['mensagem'], "© Ondrakos · 水の竜", estilo, "[]", img_bytes, primeira_imagem, "anuncio")
+            except Exception:
+                pass
+
             await msg.reply("✅ Anúncio enviado!", delete_after=10)
             try:
                 bot.mensagens_ignorar_delete.add(msg.id)
@@ -1963,7 +1977,26 @@ class RemandarMensagemModal(Modal):
             
             # Salvar no DB
             try:
-                await bot.db.salvar_layout(nova_msg.id, nova_msg.channel.id, titulo_final, desc_final, footer_final, estilo_detectado)
+                img_bytes = None
+                img_nome = None
+                if nova_imagem:
+                    nova_imagem.fp.seek(0)
+                    img_bytes = nova_imagem.fp.read()
+                    nova_imagem.fp.seek(0)
+                    img_nome = nova_imagem.filename
+                elif url_img_v2:
+                    import aiohttp
+                    import urllib.parse
+                    import os
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(url_img_v2) as resp:
+                            if resp.status == 200:
+                                img_bytes = await resp.read()
+                                parsed = urllib.parse.urlparse(url_img_v2)
+                                ext = os.path.splitext(parsed.path)[1] or ".png"
+                                img_nome = f"imagem_v2{ext}"
+                                
+                await bot.db.salvar_layout(nova_msg.id, nova_msg.channel.id, titulo_final, desc_final, footer_final, estilo_detectado, "[]", img_bytes, img_nome, "anuncio")
             except Exception:
                 pass
 
@@ -2531,6 +2564,9 @@ async def varredura_v2(ctx):
     
     import json
     import re
+    import aiohttp
+    import io
+    import urllib.parse
     
     # Text channels
     for c in ctx.guild.text_channels:
@@ -2553,89 +2589,147 @@ async def varredura_v2(ctx):
                 canais_alvo.append(t)
                 
     total_resgatado = 0
+    relatorio = []
     
-    for canal in canais_alvo:
-        try:
-            async for m in canal.history(limit=500):
-                if m.author.id == bot.user.id:
-                    reacoes = json.dumps([str(r.emoji) for r in m.reactions]) if m.reactions else "[]"
-                    
-                    # ── V1 EMBEDS ──
-                    if m.embeds and not m.components:
-                        emb = m.embeds[0]
-                        titulo = emb.title or ""
-                        descricao = emb.description or ""
-                        footer = emb.footer.text if emb.footer else ""
-                        try:
-                            await bot.db.salvar_layout(m.id, canal.id, titulo[:256], descricao, footer[:2048], "padrao", reacoes)
-                            total_resgatado += 1
-                        except Exception:
-                            pass
+    async with aiohttp.ClientSession() as session:
+        async def fetch_image(url):
+            try:
+                async with session.get(url) as resp:
+                    if resp.status == 200:
+                        return await resp.read()
+            except Exception:
+                pass
+            return None
+
+        for canal in canais_alvo:
+            try:
+                async for m in canal.history(limit=500):
+                    if m.author.id == bot.user.id:
+                        reacoes = json.dumps([str(r.emoji) for r in m.reactions]) if m.reactions else "[]"
+                        
+                        titulo_status = "Nao"
+                        texto_status = "Nao"
+                        imagem_status = "Nao"
+                        footer_status = "Nao"
+                        
+                        # ── V1 EMBEDS ──
+                        if m.embeds and not m.components:
+                            emb = m.embeds[0]
+                            titulo = emb.title or ""
+                            descricao = emb.description or ""
+                            footer = emb.footer.text if emb.footer else ""
                             
-                    # ── V2 LAYOUT VIEWS ──
-                    elif m.components:
-                        raw_data = await bot.http.get_message(canal.id, m.id)
-                        comps = raw_data.get('components', [])
-                        if not comps: continue
-                        
-                        estilo_detectado = "padrao"
-                        titulo = ""
-                        footer = ""
-                        
-                        # Detectar estilo
-                        for c in comps[:2]:
-                            if c.get('type') == 14 and 'Ondrakos' in str(c.get('text', '')):
-                                estilo_detectado = "invertido"
-                                break
+                            if titulo: titulo_status = "Sim"
+                            if descricao: texto_status = "Sim"
+                            if footer: footer_status = "Sim"
+                            
+                            img_bytes = None
+                            img_nome = None
+                            if emb.image and emb.image.url:
+                                img_bytes = await fetch_image(emb.image.url)
+                                if img_bytes:
+                                    img_nome = "imagem_v1.png"
+                                    imagem_status = "Sim"
+                            
+                            try:
+                                await bot.db.salvar_layout(m.id, canal.id, titulo[:256], descricao, footer[:2048], "padrao", reacoes, img_bytes, img_nome)
+                                total_resgatado += 1
+                                relatorio.append(f"[V1] Msg {m.id} em #{canal.name} -> Titulo: {titulo_status}, Imagem: {imagem_status}, Texto: {texto_status}, Footer: {footer_status}")
+                            except Exception:
+                                pass
                                 
-                        # Extrator de fallback
-                        def extrair_v2_local(obj):
-                            t = ""
-                            if isinstance(obj, dict):
-                                if obj.get('type') in [2, 3, 5, 6, 7, 8]:
-                                    pass
-                                else:
-                                    for key in ['text', 'content', 'value', 'description']:
-                                        if key in obj and isinstance(obj[key], str) and len(obj[key].strip()) > 0:
-                                            t += obj[key] + "\n"
-                                for k, v in obj.items():
-                                    t += extrair_v2_local(v)
-                            elif isinstance(obj, list):
-                                for i in obj:
-                                    t += extrair_v2_local(i)
-                            return t
+                        # ── V2 LAYOUT VIEWS ──
+                        elif m.components:
+                            raw_data = await bot.http.get_message(canal.id, m.id)
+                            comps = raw_data.get('components', [])
+                            if not comps: continue
                             
-                        texto = extrair_v2_local(raw_data).strip()
-                        if not texto: continue
+                            estilo_detectado = "padrao"
+                            titulo = ""
+                            footer = ""
+                            url_img_v2 = None
                             
-                        linhas = [L.strip() for L in texto.split('\n') if L.strip()]
-                        
-                        # Melhoria no Titulo: pegar a linha que contém ** (incluindo emojis antes)
-                        for i, linha in enumerate(linhas):
-                            if "**" in linha:
-                                titulo = linha.replace("**", "").strip()
-                                linhas.pop(i)
-                                break
+                            # Detectar estilo
+                            for c in comps[:2]:
+                                if c.get('type') == 14 and 'Ondrakos' in str(c.get('text', '')):
+                                    estilo_detectado = "invertido"
+                                    break
+                                    
+                            # Extrator de fallback e imagem
+                            def extrair_v2_local(obj):
+                                nonlocal url_img_v2
+                                t = ""
+                                if isinstance(obj, dict):
+                                    if obj.get('type') == 13: # MediaGallery
+                                        for it in obj.get('items', []):
+                                            if 'url' in it and 'sep' not in it['url'].lower():
+                                                if url_img_v2 is None:
+                                                    url_img_v2 = it['url']
+                                    if obj.get('type') in [2, 3, 5, 6, 7, 8]:
+                                        pass
+                                    else:
+                                        for key in ['text', 'content', 'value', 'description']:
+                                            if key in obj and isinstance(obj[key], str) and len(obj[key].strip()) > 0:
+                                                t += obj[key] + "\n"
+                                    for k, v in obj.items():
+                                        t += extrair_v2_local(v)
+                                elif isinstance(obj, list):
+                                    for i in obj:
+                                        t += extrair_v2_local(i)
+                                return t
                                 
-                        # Melhoria no Footer
-                        for i in range(len(linhas)-1, -1, -1):
-                            if '-#' in linhas[i] or 'Ondrakos' in linhas[i]:
-                                footer = linhas[i].replace("-# ", "").strip()
-                                linhas.pop(i)
-                                break
+                            texto = extrair_v2_local(raw_data).strip()
+                            if not texto: continue
+                                
+                            linhas = [L.strip() for L in texto.split('\n') if L.strip()]
                             
-                        descricao = "\n".join(linhas)[:4000]
-                        
-                        # Salva no DB
-                        try:
-                            await bot.db.salvar_layout(m.id, canal.id, titulo[:256], descricao, footer[:2048], estilo_detectado, reacoes)
-                            total_resgatado += 1
-                        except Exception:
-                            pass
-        except Exception:
-            pass # Sem permissão para ler o histórico
-            
-    await msg_status.edit(content=f"✅ Varredura concluída! {total_resgatado} mensagens resgatadas (V1 Embeds e V2 Layouts) e salvas no banco de dados.")
+                            # Titulo
+                            for i, linha in enumerate(linhas):
+                                if "**" in linha:
+                                    titulo = linha.replace("**", "").strip()
+                                    linhas.pop(i)
+                                    break
+                                    
+                            # Footer
+                            for i in range(len(linhas)-1, -1, -1):
+                                if '-#' in linhas[i] or 'Ondrakos' in linhas[i]:
+                                    footer = linhas[i].replace("-# ", "").strip()
+                                    linhas.pop(i)
+                                    break
+                                
+                            descricao = "\n".join(linhas)[:4000]
+                            
+                            if titulo: titulo_status = "Sim"
+                            if descricao: texto_status = "Sim"
+                            if footer: footer_status = "Sim"
+                            
+                            # Imagem
+                            img_bytes = None
+                            img_nome = None
+                            if url_img_v2:
+                                img_bytes = await fetch_image(url_img_v2)
+                                if img_bytes:
+                                    parsed = urllib.parse.urlparse(url_img_v2)
+                                    ext = os.path.splitext(parsed.path)[1] or ".png"
+                                    img_nome = f"imagem_v2{ext}"
+                                    imagem_status = "Sim"
+                            
+                            # Salva no DB
+                            try:
+                                await bot.db.salvar_layout(m.id, canal.id, titulo[:256], descricao, footer[:2048], estilo_detectado, reacoes, img_bytes, img_nome)
+                                total_resgatado += 1
+                                relatorio.append(f"[V2] Msg {m.id} em #{canal.name} -> Titulo: {titulo_status}, Imagem: {imagem_status}, Texto: {texto_status}, Footer: {footer_status}")
+                            except Exception:
+                                pass
+            except Exception:
+                pass # Sem permissão para ler o histórico
+                
+    relatorio_txt = "\n".join(relatorio)
+    if not relatorio_txt:
+        relatorio_txt = "Nenhuma mensagem do Ondrakos foi encontrada ou convertida."
+        
+    arquivo_log = discord.File(io.BytesIO(relatorio_txt.encode('utf-8')), filename="relatorio_varredura.txt")
+    await msg_status.edit(content=f"✅ Varredura concluída! {total_resgatado} mensagens resgatadas.", attachments=[arquivo_log])
 
 # --- FIM COMANDO VARREDURA ---
 
