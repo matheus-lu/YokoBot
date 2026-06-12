@@ -593,7 +593,7 @@ class AnuncioModal(Modal):
 
         anuncio_pendente[interaction.user.id] = {
             "canal_id": self.canal_id,
-            "titulo": self.titulo.value,
+            "titulo": f"**{self.titulo.value}**" if not self.titulo.value.startswith("**") else self.titulo.value,
             "mensagem": self.mensagem.value,
             "mencoes": self.mencoes.value,
             "frase_convocacao": self.frase_convocacao.value.strip() if self.frase_convocacao.value else "",
@@ -922,7 +922,7 @@ class PostagemModal(Modal):
 
         postagem_pendente[interaction.user.id] = {
             "forum_id": forum_id,
-            "titulo": self.titulo.value,
+            "titulo": f"**{self.titulo.value}**" if not self.titulo.value.startswith("**") else self.titulo.value,
             "mensagem": self.mensagem.value,
             "tags_texto": self.tags.value,
             "mencoes": self.mencoes.value,
@@ -1531,7 +1531,7 @@ class EditarMensagemModal(Modal):
         editar_pendente[interaction.user.id] = {
             "canal_id": self.canal_id,
             "msg_id": self.msg_id,
-            "titulo": self.titulo_field.value,
+            "titulo": f"**{self.titulo_field.value}**" if not self.titulo_field.value.startswith("**") else self.titulo_field.value,
             "descricao": self.descricao_field.value,
             "footer": self.footer_field.value or "© Ondrakos · 水の竜",
         }
@@ -1760,7 +1760,7 @@ class RemandarMensagemModal(Modal):
         remandar_pendente[interaction.user.id] = {
             "canal_id": self.canal_id,
             "msg_id":   self.msg_id,
-            "titulo":   self.titulo_field.value,
+            "titulo":   f"**{self.titulo_field.value}**" if not self.titulo_field.value.startswith("**") else self.titulo_field.value,
             "descricao":self.descricao_field.value,
             "footer":   self.footer_field.value or "© Ondrakos · 水の竜",
         }
@@ -2977,7 +2977,7 @@ class AvisoChatModal(Modal):
             with open(sep_path, "rb") as f: sep_bytes = f.read()
 
         view = AvisoChatLayout(
-            titulo=self.titulo.value,
+            titulo=f"**{self.titulo.value}**" if not self.titulo.value.startswith("**") else self.titulo.value,
             mensagem=self.mensagem.value,
             footer=self.footer.value or "© Ondrakos · 水の竜",
             imagem_bytes=imagem_bytes,
@@ -2997,7 +2997,7 @@ class AvisoChatModal(Modal):
             await interaction.client.db.salvar_layout(
                 msg_id=msg_enviada.id,
                 canal_id=self.canal.id,
-                titulo=self.titulo.value,
+                titulo=f"**{self.titulo.value}**" if not self.titulo.value.startswith("**") else self.titulo.value,
                 descricao=self.mensagem.value,
                 footer=self.footer.value or "© Ondrakos · 水の竜",
                 estilo="padrao",
