@@ -22,6 +22,41 @@ class LogsCog(commands.Cog):
             else:
                 await canal.send(embed=embed)
 
+    # ── Tópico/Fórum Deletado ──────────────────────────────
+    @commands.Cog.listener()
+    async def on_thread_delete(self, thread):
+        canal_log = self.bot.get_channel(config.ADM_LOG_CANAL_ID())
+        if not canal_log:
+            return
+
+        agora = datetime.now(BRT).strftime("%d/%m/%Y %H:%M:%S")
+
+        deletado_por = None
+        try:
+            import asyncio as _asyncio
+            await _asyncio.sleep(1.5)
+            async def _get_deleter():
+                async for entry in thread.guild.audit_logs(limit=10, action=discord.AuditLogAction.thread_delete):
+                    if entry.target.id == thread.id:
+                        import datetime as _dt
+                        agora_utc = _dt.datetime.now(_dt.timezone.utc)
+                        diff = (agora_utc - entry.created_at).total_seconds()
+                        if diff < 10:
+                            return entry.user
+                return None
+            deletado_por = await _asyncio.wait_for(_get_deleter(), timeout=5.0)
+        except Exception:
+            pass
+
+        embed = discord.Embed(title="🗑️ Tópico Deletado", color=discord.Color.dark_red())
+        embed.add_field(name="📂 Fórum/Categoria", value=f"{thread.parent.mention if thread.parent else 'Desconhecido'} `{thread.parent_id}`", inline=False)
+        embed.add_field(name="📢 Nome do Tópico", value=f"**{thread.name}**\n`ID: {thread.id}`", inline=True)
+        if deletado_por:
+            embed.add_field(name="🗑️ Deletado por", value=f"{deletado_por.mention}\n`ID: {deletado_por.id}`", inline=True)
+        embed.add_field(name="🕐 Horário", value=agora, inline=True)
+        
+        await canal_log.send(embed=embed)
+
     # ── Mensagem Deletada ──────────────────────────────────
     @commands.Cog.listener()
     async def on_message_delete(self, message):
