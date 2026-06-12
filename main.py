@@ -2070,8 +2070,10 @@ async def repostar_topico(interaction: discord.Interaction):
             continue 
 
         eh_separador = False
+        # Qualquer mensagem que tiver apenas 1 anexo, sem texto e sem embeds, consideramos como separador solto!
         if not m.content and not m.embeds and len(m.attachments) == 1:
-            if "sep" in m.attachments[0].filename.lower():
+            att = m.attachments[0]
+            if att.content_type and att.content_type.startswith("image"):
                 eh_separador = True
 
         if eh_separador:
