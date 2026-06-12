@@ -3063,4 +3063,56 @@ async def aviso_chat_cmd(interaction: discord.Interaction, canal: discord.TextCh
 # Adicionar a view vazia para persistência:
 # Colocaremos isso no on_ready do bot: bot.add_view(AvisoChatLayoutVazio())
 
+@bot.event
+async def on_api_send_layout(canal, tipo, titulo, mensagem, imagem_url, fut):
+    try:
+        import aiohttp
+        imagem_bytes = None
+        filename = None
+        if imagem_url:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(imagem_url) as resp:
+                    if resp.status == 200:
+                        imagem_bytes = await resp.read()
+                        filename = imagem_url.split('/')[-1] or "imagem.png"
+                        if not filename.endswith(('.png', '.jpg', '.jpeg', '.gif')):
+                            filename += ".png"
+                            
+        sep_bytes = None
+        sep_filename = None
+        try:
+            sep_file = _sep_file()
+            if sep_file:
+                with open(sep_file.fp.name, "rb") as file_obj:
+                    sep_bytes = file_obj.read()
+                sep_filename = sep_file.filename
+        except:
+            pass
+
+        if tipo == 'aviso-chat':
+            view = AvisoChatLayout(titulo=titulo, mensagem=mensagem, footer="© Ondrakos · 水の竜", imagem_bytes=imagem_bytes, filename=filename, sep_bytes=sep_bytes, sep_filename=sep_filename)
+        elif tipo == 'anuncio':
+            view = AnuncioLayout(titulo=titulo, mensagem=mensagem, footer="© Ondrakos · 水の竜", imagem_bytes=imagem_bytes, filename=filename, sep_bytes=sep_bytes, sep_filename=sep_filename)
+        else:
+            view = AvisoLayout(titulo=titulo, mensagem=mensagem, footer="© Ondrakos · 水の竜", imagem_bytes=imagem_bytes, filename=filename, sep_bytes=sep_bytes, sep_filename=sep_filename)
+            
+        msg = await canal.send(view=view)
+        
+        try:
+            await bot.db.salvar_layout(
+                msg_id=msg.id,
+                channel_id=canal.id,
+                tipo=tipo,
+                estilo='v2',
+                titulo=titulo,
+                mensagem=mensagem,
+                imagem_bytes=imagem_bytes
+            )
+        except Exception as e:
+            print(f"Erro ao salvar bd no api_send_layout: {e}")
+
+        fut.set_result(msg.id)
+    except Exception as e:
+        fut.set_exception(e)
+
 bot.run(config.TOKEN)

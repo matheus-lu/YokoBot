@@ -30,6 +30,36 @@ async def get_layouts(request):
     except Exception as e:
         return web.json_response({"status": "error", "message": str(e)}, status=500)
 
+import asyncio
+
+async def send_layout(request):
+    bot = request.app['bot']
+    try:
+        data = await request.json()
+        
+        canal_id = data.get('canal_id')
+        tipo = data.get('tipo', 'aviso')
+        titulo = data.get('titulo', '')
+        mensagem = data.get('mensagem', '')
+        imagem_url = data.get('imagem_url', '')
+        
+        if not canal_id or not titulo or not mensagem:
+            return web.json_response({"status": "error", "message": "Canal, título e mensagem são obrigatórios."}, status=400)
+            
+        canal = bot.get_channel(int(canal_id))
+        if not canal:
+            return web.json_response({"status": "error", "message": "Canal não encontrado no Discord do bot."}, status=404)
+            
+        fut = asyncio.get_running_loop().create_future()
+        bot.dispatch('api_send_layout', canal, tipo, titulo, mensagem, imagem_url, fut)
+        
+        # Wait for main.py to process it
+        msg_id = await fut
+        
+        return web.json_response({"status": "success", "msg_id": msg_id})
+    except Exception as e:
+        return web.json_response({"status": "error", "message": str(e)}, status=500)
+
 # ── Rota raiz simples para teste ──
 async def index(request):
     return web.Response(text="API do Ondrakos V2 está online! 🐉")
@@ -53,8 +83,13 @@ async def start_server(bot):
     route_index = app.router.add_get('/', index)
     route_layouts = app.router.add_get('/api/layouts', get_layouts)
     
+    # Rota de envio com preflight manual CORS para métodos POST se o aiohttp_cors não pegar automaticamente
+    route_send = app.router.add_post('/api/send_layout', send_layout)
+    route_send_options = app.router.add_options('/api/send_layout', lambda r: web.Response(headers={'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type'}))
+    
     cors.add(route_index)
     cors.add(route_layouts)
+    cors.add(route_send)
     
     runner = web.AppRunner(app)
     await runner.setup()
