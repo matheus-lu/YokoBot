@@ -2063,31 +2063,27 @@ async def repostar_topico(interaction: discord.Interaction):
         return None
 
     mensagens_processadas = []
-    teve_separador_acumulado = False
 
     for m in mensagens:
         if m.author.id == interaction.user.id and m.content.startswith("/repostar-topico"):
             continue 
 
         eh_separador = False
-        # Qualquer mensagem que tiver apenas 1 anexo, sem texto e sem embeds, consideramos como separador solto!
         if not m.content and not m.embeds and len(m.attachments) == 1:
             att = m.attachments[0]
             if att.content_type and att.content_type.startswith("image"):
                 eh_separador = True
 
-        if eh_separador:
-            teve_separador_acumulado = True
-        else:
-            mensagens_processadas.append((m, teve_separador_acumulado))
-            teve_separador_acumulado = False
+        # Ignora separadores antigos (eles serao recriados automaticamente)
+        if not eh_separador:
+            mensagens_processadas.append(m)
 
     if not mensagens_processadas:
         await interaction.followup.send("❌ Não encontrei nenhuma mensagem útil para clonar.")
         return
 
     # Processar a primeira mensagem (que vai criar o tópico)
-    m1 = mensagens_processadas[0][0]
+    m1 = mensagens_processadas[0]
     
     texto_final = m1.content or ""
     url_img_1 = None
@@ -2158,7 +2154,7 @@ async def repostar_topico(interaction: discord.Interaction):
                 pass
 
     # Processar o resto das mensagens
-    for m, teve_sep in mensagens_processadas[1:]:
+    for m in mensagens_processadas[1:]:
         texto_m = m.content or ""
         url_img_m = None
         if m.embeds:
@@ -2197,10 +2193,10 @@ async def repostar_topico(interaction: discord.Interaction):
                 primeira_img_m = nome_arq
 
         gallery_items = []
-        if teve_sep:
-            if os.path.exists("midia/sep_anuncio.png"):
-                arquivos_m.insert(0, discord.File("midia/sep_anuncio.png", filename="sep_anuncio.png"))
-                gallery_items.append(discord.MediaGalleryItem("attachment://sep_anuncio.png"))
+        # Adiciona o separador por padrão em todas as mensagens seguintes
+        if os.path.exists("midia/sep_anuncio.png"):
+            arquivos_m.insert(0, discord.File("midia/sep_anuncio.png", filename="sep_anuncio.png"))
+            gallery_items.append(discord.MediaGalleryItem("attachment://sep_anuncio.png"))
 
         if primeira_img_m:
             gallery_items.append(discord.MediaGalleryItem("attachment://" + primeira_img_m))
