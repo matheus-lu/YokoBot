@@ -1162,6 +1162,8 @@ async def reagir_cmd(interaction: discord.Interaction, msg_id: str):
     canais_alvo = []
     for c in interaction.guild.text_channels:
         canais_alvo.append(c)
+    for v in interaction.guild.voice_channels:
+        canais_alvo.append(v)
     for f in interaction.guild.forums:
         for t in f.threads:
             canais_alvo.append(t)
