@@ -2922,7 +2922,10 @@ class DynamicLayout(discord.ui.LayoutView):
             elif b['type'] == 'separador':
                 itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
             elif b['type'] == 'imagem':
-                itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem(b['url'])))
+                if b.get('filename'):
+                    itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem(f"attachment://{b['filename']}")))
+                elif b.get('url'):
+                    itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem(b['url'])))
         
         if footer:
             itens.append(discord.ui.TextDisplay(f"-# {footer}" if not footer.startswith("-#") else footer))
@@ -3121,6 +3124,23 @@ async def on_api_send_layout(canal, tipo, titulo, mensagem, imagem_url, blocos, 
             arquivos.append(discord.File(io.BytesIO(sep_bytes), filename=sep_filename))
 
         if blocos:
+            # Baixar imagens adicionais dos blocos
+            for i, b in enumerate(blocos):
+                if b['type'] == 'imagem' and b.get('url'):
+                    try:
+                        async with aiohttp.ClientSession() as session:
+                            async with session.get(b['url']) as resp:
+                                if resp.status == 200:
+                                    img_b = await resp.read()
+                                    fname = f"block_{i}.png"
+                                    if b['url'].split('/')[-1].endswith(('.png', '.jpg', '.jpeg', '.gif')):
+                                        fname = f"block_{i}_{b['url'].split('/')[-1]}"
+                                    b['filename'] = fname
+                                    arquivos.append(discord.File(io.BytesIO(img_b), filename=fname))
+                    except Exception as e:
+                        print(f"Erro ao baixar imagem do bloco: {e}")
+                        pass
+            
             # Novo sistema dinâmico de blocos!
             view = DynamicLayout(blocos=blocos, files=arquivos, footer="© Ondrakos · 水の竜", tipo=tipo)
             if arquivos:
