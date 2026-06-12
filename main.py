@@ -2947,7 +2947,10 @@ class DynamicLayout(discord.ui.LayoutView):
                 titulo_limpo = b['content'].replace('**', '')
                 itens.append(discord.ui.TextDisplay(f"**{titulo_limpo}**" if not titulo_limpo.startswith("**") else titulo_limpo))
             elif b['type'] == 'separador':
-                itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+                if b.get('content') == 'imagem_bot':
+                    itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://sep_anuncio.png")))
+                else:
+                    itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
             elif b['type'] == 'imagem':
                 if b.get('filename'):
                     itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem(f"attachment://{b['filename']}")))
