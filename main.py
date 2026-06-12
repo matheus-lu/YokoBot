@@ -1951,10 +1951,52 @@ async def remandar_cmd(interaction: discord.Interaction, id: str):
 
     embed = target_msg.embeds[0] if target_msg.embeds else None
     modal = RemandarMensagemModal(canal_id=target_msg.channel.id, msg_id=target_msg.id)
+    
+    # Extrair texto (suporta V1 embeds e V2 LayoutView)
+    v2_text = ""
+    try:
+        raw_data = await bot.http.get_message(target_msg.channel.id, target_msg.id)
+        
+        def extrair_v2(obj):
+            t = ""
+            if isinstance(obj, dict):
+                # O TextDisplay V2 usa type 14 ou similar, e guarda em 'text'
+                if 'text' in obj and isinstance(obj['text'], str) and obj.get('type') not in [2, 3]: # ignora botoes/selects
+                    t += obj['text'] + "\n"
+                for k, v in obj.items():
+                    t += extrair_v2(v)
+            elif isinstance(obj, list):
+                for i in obj:
+                    t += extrair_v2(i)
+            return t
+        
+        v2_text = extrair_v2(raw_data.get('components', [])).strip()
+    except Exception:
+        pass
+
     if embed:
         modal.titulo_field.default    = embed.title or ""
         modal.descricao_field.default = embed.description or ""
         modal.footer_field.default    = embed.footer.text if embed.footer else ""
+    elif v2_text:
+        titulo = ""
+        footer = ""
+        linhas = [L.strip() for L in v2_text.split('\n') if L.strip()]
+        
+        if linhas and linhas[0].startswith("**") and linhas[0].endswith("**"):
+            titulo = linhas[0].strip("*")
+            linhas = linhas[1:]
+        elif linhas and linhas[0].startswith("**"):
+            titulo = linhas[0].replace("**", "")
+            linhas = linhas[1:]
+            
+        if linhas and linhas[-1].startswith("-# "):
+            footer = linhas[-1].replace("-# ", "").strip()
+            linhas = linhas[:-1]
+            
+        modal.titulo_field.default = titulo[:256]
+        modal.descricao_field.default = "\n".join(linhas)[:4000]
+        modal.footer_field.default = footer[:2048]
     else:
         modal.descricao_field.default = target_msg.content or ""
 
