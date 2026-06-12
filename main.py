@@ -722,7 +722,7 @@ class AnuncioModal(Modal):
             import os
             estilo = dados.get("estilo", "padrao")
             
-            texto_principal = f"**{dados['titulo']}**\\n\\n{dados['mensagem']}"
+            texto_principal = f"**{dados['titulo']}**\n\n{dados['mensagem']}"
             
             if estilo == "padrao":
                 if primeira_imagem:
