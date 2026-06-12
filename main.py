@@ -2913,8 +2913,17 @@ class AvisoChatLayout(discord.ui.LayoutView):
             itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem(f"attachment://{filename}")))
             itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
             
+        titulo_limpo = titulo.replace('**', '')
+        import re
+        match = re.search(r'([a-zA-Z0-9À-ÿ].*[a-zA-Z0-9À-ÿ]|[a-zA-Z0-9À-ÿ])', titulo_limpo)
+        if match:
+            start, end = match.span()
+            titulo_formatado = titulo_limpo[:start] + "**" + titulo_limpo[start:end] + "**" + titulo_limpo[end:]
+        else:
+            titulo_formatado = f"**{titulo_limpo}**"
+
         itens.extend([
-            discord.ui.TextDisplay(f"{titulo.replace('**', '')}"),
+            discord.ui.TextDisplay(titulo_formatado),
             discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
             discord.ui.TextDisplay(mensagem),
             discord.ui.Separator(spacing=discord.SeparatorSpacing.small)
