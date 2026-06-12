@@ -546,9 +546,10 @@ class AnuncioPresencaView(View):
 
 
 class AnuncioModal(Modal):
-    def __init__(self, canal_id: int):
+    def __init__(self, canal_id: int, estilo: str = "padrao"):
         super().__init__(title="🐉 Criar Anúncio — Ondrakos")
         self.canal_id = canal_id
+        self.estilo = estilo
         self.titulo = TextInput(
             label="Título",
             placeholder="Ex: 🐉 Evento Especial — Ritual do Clã",
@@ -599,6 +600,7 @@ class AnuncioModal(Modal):
             "evento": eh_evento,
             "divisores": usar_divisores,
             "guild_id": interaction.guild.id,
+            "estilo": getattr(self, "estilo", "padrao"),
         }
 
         texto = (
@@ -643,93 +645,40 @@ class AnuncioModal(Modal):
 
             # Montar layout V2
             itens_anuncio = []
-            
-            # 1. Imagem principal sera adicionada no inicio depois de baixada
-            
-            # 2. Conteudo de texto
-            texto_principal = f"**{dados['titulo']}**\n\n{dados['mensagem']}"
-            itens_anuncio.append(discord.ui.TextDisplay(texto_principal))
-            
-            # 3. Separador e Footer serao adicionados antes de renderizar
-
-            # Montar menções
-            texto_mencao, content_ping = montar_texto_mencao(dados["mencoes"], guild, dados.get("frase_convocacao", ""))
-
-            content = texto_mencao if texto_mencao else None
-
-            tem_everyone = dados["mencoes"] and ("@everyone" in dados["mencoes"] or "@here" in dados["mencoes"])
-            allowed = discord.AllowedMentions(
-                everyone=tem_everyone,
-                users=True,
-                roles=True,
-            )
-
-            # Coletar todos os arquivos anexados (qualquer tipo, até 10 por vez)
-            arquivos = []
-            primeira_imagem = None
-            msg_atual = msg
-
-            async def coletar_arquivos(msg_ref):
-                nonlocal primeira_imagem
-                _arquivos = []
-                if msg_ref.content.strip().lower() == "pular" or not msg_ref.attachments:
-                    return _arquivos
-                for att in msg_ref.attachments:
-                    # Verificar tamanho antes de baixar
-                    if att.size > 9_000_000:
-                        await interaction.followup.send(
-                            f"⚠️ O arquivo **{att.filename}** é muito grande ({att.size // 1024 // 1024}MB). "
-                            "Envie uma versão menor (máx 9MB) ou digite **pular**.",
-                            ephemeral=True
-                        )
-                        return None  # sinaliza que precisa de nova tentativa
-                    try:
-                        dados_bytes = await att.read()
-                        _arquivos.append(discord.File(io.BytesIO(dados_bytes), filename=att.filename))
-                        if primeira_imagem is None and att.content_type and att.content_type.startswith("image"):
-                            primeira_imagem = att.filename
-                    except Exception:
-                        await interaction.followup.send(f"⚠️ Erro ao baixar `{att.filename}`. Pulando.", ephemeral=True)
-                return _arquivos
-
-            # Tentar coletar — se arquivo grande, pedir nova mensagem
-            for _tentativa in range(3):
-                resultado = await coletar_arquivos(msg_atual)
-                if resultado is None:
-                    # Arquivo grande — esperar nova mensagem
-                    try:
-                        msg_atual = await bot.wait_for("message", check=check, timeout=120)
-                        if msg_atual.content.strip().lower() == "cancelar":
-                            try:
-                                bot.mensagens_ignorar_delete.add(msg_atual.id)
-                                await msg_atual.delete()
-                            except Exception:
-                                pass
-                            await interaction.followup.send("❌ Anúncio cancelado.", ephemeral=True)
-                            return
-                        primeira_imagem = None  # resetar para nova tentativa
-                        continue
-                    except asyncio.TimeoutError:
-                        await interaction.followup.send("⏳ Tempo esgotado.", ephemeral=True)
-                        return
-                else:
-                    arquivos = resultado
-                    break
-
-            if primeira_imagem:
-                itens_anuncio.insert(0, discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
-                itens_anuncio.insert(0, discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://" + primeira_imagem)))
-                
-            # 3. Separador (sep_anuncio)
             import os
-            if dados.get("divisores", True) and os.path.exists("sep_anuncio.png"):
-                arquivos.append(discord.File("sep_anuncio.png", filename="sep_anuncio_bot.png"))
-                itens_anuncio.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
-                itens_anuncio.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://sep_anuncio_bot.png")))
+            estilo = dados.get("estilo", "padrao")
+            
+            texto_principal = f"**{dados['titulo']}**\\n\\n{dados['mensagem']}"
+            
+            if estilo == "padrao":
+                if primeira_imagem:
+                    itens_anuncio.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://" + primeira_imagem)))
+                    itens_anuncio.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+                    
+                itens_anuncio.append(discord.ui.TextDisplay(texto_principal))
                 
-            # 4. Footer
-            itens_anuncio.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
-            itens_anuncio.append(discord.ui.TextDisplay("-# © Ondrakos · 水の竜"))
+                if dados.get("divisores", True) and os.path.exists("sep_anuncio.png"):
+                    arquivos.append(discord.File("sep_anuncio.png", filename="sep_anuncio_bot.png"))
+                    itens_anuncio.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+                    itens_anuncio.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://sep_anuncio_bot.png")))
+                    
+                itens_anuncio.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+                itens_anuncio.append(discord.ui.TextDisplay("-# © Ondrakos · 水の竜"))
+                
+            else: # invertido
+                if dados.get("divisores", True) and os.path.exists("sep_anuncio.png"):
+                    arquivos.append(discord.File("sep_anuncio.png", filename="sep_anuncio_bot.png"))
+                    itens_anuncio.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://sep_anuncio_bot.png")))
+                    itens_anuncio.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+                    
+                itens_anuncio.append(discord.ui.TextDisplay(texto_principal))
+                
+                if primeira_imagem:
+                    itens_anuncio.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+                    itens_anuncio.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://" + primeira_imagem)))
+                    
+                itens_anuncio.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+                itens_anuncio.append(discord.ui.TextDisplay("-# © Ondrakos · 水の竜"))
 
             # Dividir em lotes de 10 (limite do Discord)
             def lotes(lista, n=10):
@@ -1127,8 +1076,9 @@ async def _ultimo_eh_sep(canal) -> bool:
     return False
 
 class AnuncioDestinoView(discord.ui.LayoutView):
-    def __init__(self, interaction: discord.Interaction):
+    def __init__(self, interaction: discord.Interaction, estilo: str = "padrao"):
         super().__init__(timeout=120)
+        self.estilo = estilo
         categorias = [c for c in interaction.guild.categories if len(c.channels) > 0]
         categorias = categorias[:25]
         
@@ -1204,16 +1154,38 @@ class AnuncioDestinoView(discord.ui.LayoutView):
             ))
             await interaction.response.edit_message(view=self)
         else:
-            await interaction.response.send_modal(AnuncioModal(canal_id=canal_id))
+            await interaction.response.send_modal(AnuncioModal(canal_id=canal_id, estilo=self.estilo))
 
     async def topico_selecionado(self, interaction: discord.Interaction):
         topico_id = int(self.select_topico.values[0])
-        await interaction.response.send_modal(AnuncioModal(canal_id=topico_id))
+        await interaction.response.send_modal(AnuncioModal(canal_id=topico_id, estilo=self.estilo))
+
+class AnuncioEstiloView(discord.ui.LayoutView):
+    def __init__(self, interaction: discord.Interaction):
+        super().__init__(timeout=120)
+        
+        btn_padrao = discord.ui.Button(label="Imagem acima, Separador abaixo", style=discord.ButtonStyle.primary, emoji="🖼️")
+        btn_padrao.callback = self.cb_padrao
+        
+        btn_inv = discord.ui.Button(label="Separador acima, Imagem abaixo", style=discord.ButtonStyle.secondary, emoji="〰️")
+        btn_inv.callback = self.cb_invertido
+        
+        self.add_item(discord.ui.Container(
+            discord.ui.TextDisplay("🐉 **Novo Anúncio › Selecione o Estilo Visual**\nComo você quer que a estrutura do anúncio seja montada?"),
+            discord.ui.ActionRow(btn_padrao, btn_inv),
+            accent_color=DORORO_COLOR
+        ))
+
+    async def cb_padrao(self, interaction: discord.Interaction):
+        await interaction.response.edit_message(view=AnuncioDestinoView(interaction, "padrao"))
+
+    async def cb_invertido(self, interaction: discord.Interaction):
+        await interaction.response.edit_message(view=AnuncioDestinoView(interaction, "invertido"))
 
 @bot.tree.command(name="anuncio", description="Criar um anúncio do Ondrakos")
 @app_commands.checks.has_permissions(administrator=True)
 async def anuncio_cmd(interaction: discord.Interaction):
-    await interaction.response.send_message(view=AnuncioDestinoView(interaction), ephemeral=True)
+    await interaction.response.send_message(view=AnuncioEstiloView(interaction), ephemeral=True)
 
 
 # ── on_ready ───────────────────────────────────────────────
