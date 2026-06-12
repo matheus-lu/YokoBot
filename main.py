@@ -2053,6 +2053,7 @@ async def repostar_topico(interaction: discord.Interaction):
 
     import io
     import aiohttp
+    import os
 
     async def fetch_bytes(url):
         async with aiohttp.ClientSession() as session:
@@ -2061,26 +2062,30 @@ async def repostar_topico(interaction: discord.Interaction):
                     return await resp.read()
         return None
 
-    # Filtrar apenas as mensagens que têm conteúdo de verdade (ignorar as que são SÓ separadores soltos)
-    mensagens_uteis = []
+    mensagens_processadas = []
+    teve_separador_acumulado = False
+
     for m in mensagens:
         if m.author.id == interaction.user.id and m.content.startswith("/repostar-topico"):
-            continue # ignora o comando
-            
+            continue 
+
         eh_separador = False
         if not m.content and not m.embeds and len(m.attachments) == 1:
             if "sep" in m.attachments[0].filename.lower():
                 eh_separador = True
-                
-        if not eh_separador:
-            mensagens_uteis.append(m)
 
-    if not mensagens_uteis:
+        if eh_separador:
+            teve_separador_acumulado = True
+        else:
+            mensagens_processadas.append((m, teve_separador_acumulado))
+            teve_separador_acumulado = False
+
+    if not mensagens_processadas:
         await interaction.followup.send("❌ Não encontrei nenhuma mensagem útil para clonar.")
         return
 
     # Processar a primeira mensagem (que vai criar o tópico)
-    m1 = mensagens_uteis[0]
+    m1 = mensagens_processadas[0][0]
     
     texto_final = m1.content or ""
     url_img_1 = None
@@ -2104,7 +2109,6 @@ async def repostar_topico(interaction: discord.Interaction):
     arquivos = []
     primeira_imagem = None
     
-    # Baixar anexos
     for att in m1.attachments:
         try:
             dados = await att.read()
@@ -2114,12 +2118,11 @@ async def repostar_topico(interaction: discord.Interaction):
         except:
             pass
 
-    # Baixar imagem do embed se não teve anexo
     if not primeira_imagem and url_img_1:
         img_bytes = await fetch_bytes(url_img_1)
         if img_bytes:
             nome_arq = "img_embed.png"
-            arquivos.append(discord.File(io.BytesIO(img_bytes), filename=nome_arq))
+            arquivos.insert(0, discord.File(io.BytesIO(img_bytes), filename=nome_arq))
             primeira_imagem = nome_arq
 
     if primeira_imagem:
@@ -2132,7 +2135,6 @@ async def repostar_topico(interaction: discord.Interaction):
     primeiro_arquivo = arquivos[0] if arquivos else discord.utils.MISSING
     resto_arquivos = arquivos[1:]
 
-    # Criar o novo tópico no mesmo fórum
     forum = canal.parent
     try:
         novo_topico = await forum.create_thread(
@@ -2146,7 +2148,6 @@ async def repostar_topico(interaction: discord.Interaction):
         await interaction.followup.send(f"❌ Erro ao criar novo tópico: {e}")
         return
 
-    # Enviar o resto dos anexos da primeira mensagem
     if resto_arquivos:
         for i in range(0, len(resto_arquivos), 10):
             try:
@@ -2154,8 +2155,8 @@ async def repostar_topico(interaction: discord.Interaction):
             except:
                 pass
 
-    # Processar o resto das mensagens úteis
-    for m in mensagens_uteis[1:]:
+    # Processar o resto das mensagens
+    for m, teve_sep in mensagens_processadas[1:]:
         texto_m = m.content or ""
         url_img_m = None
         if m.embeds:
@@ -2196,27 +2197,24 @@ async def repostar_topico(interaction: discord.Interaction):
         if primeira_img_m:
             itens_m.insert(0, discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://" + primeira_img_m)))
 
+        if teve_sep:
+            if os.path.exists("midia/sep_anuncio.png"):
+                arquivos_m.insert(0, discord.File("midia/sep_anuncio.png", filename="sep_anuncio.png"))
+                itens_m.insert(0, discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://sep_anuncio.png")))
+
         view_m = discord.ui.LayoutView()
         if itens_m:
             view_m.add_item(discord.ui.Container(*itens_m, accent_color=DORORO_COLOR))
 
-        prim_arq_m = arquivos_m[0] if arquivos_m else discord.utils.MISSING
-        resto_m = arquivos_m[1:]
-
-        # Se houver view (ou seja, conteudo), mandamos o separador local nativo junto na mesma mensagem!
-        file_send = prim_arq_m
-        # Se não houver arquivo no prim_arq_m, a gente manda o separador
-        if file_send is discord.utils.MISSING:
-            import os
-            if os.path.exists("midia/sep_anuncio.png"):
-                file_send = discord.File("midia/sep_anuncio.png", filename="sep_anuncio.png")
+        lote_principal = arquivos_m[:10]
+        resto_m = arquivos_m[10:]
 
         try:
-            if itens_m or file_send is not discord.utils.MISSING:
+            if itens_m or lote_principal:
                 await novo_topico.thread.send(
                     content="",
                     view=view_m if itens_m else discord.utils.MISSING,
-                    file=file_send
+                    files=lote_principal if lote_principal else discord.utils.MISSING
                 )
             if resto_m:
                 for i in range(0, len(resto_m), 10):
