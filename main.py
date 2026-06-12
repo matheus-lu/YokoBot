@@ -593,7 +593,7 @@ class AnuncioModal(Modal):
 
         anuncio_pendente[interaction.user.id] = {
             "canal_id": self.canal_id,
-            "titulo": f"**{self.titulo.value}**" if not self.titulo.value.startswith("**") else self.titulo.value,
+            "titulo": f"**{self.titulo.value.strip()}**" if not self.titulo.value.strip().startswith("**") else self.titulo.value.strip(),
             "mensagem": self.mensagem.value,
             "mencoes": self.mencoes.value,
             "frase_convocacao": self.frase_convocacao.value.strip() if self.frase_convocacao.value else "",
@@ -922,7 +922,7 @@ class PostagemModal(Modal):
 
         postagem_pendente[interaction.user.id] = {
             "forum_id": forum_id,
-            "titulo": f"**{self.titulo.value}**" if not self.titulo.value.startswith("**") else self.titulo.value,
+            "titulo": f"**{self.titulo.value.strip()}**" if not self.titulo.value.strip().startswith("**") else self.titulo.value.strip(),
             "mensagem": self.mensagem.value,
             "tags_texto": self.tags.value,
             "mencoes": self.mencoes.value,
@@ -1531,7 +1531,7 @@ class EditarMensagemModal(Modal):
         editar_pendente[interaction.user.id] = {
             "canal_id": self.canal_id,
             "msg_id": self.msg_id,
-            "titulo": f"**{self.titulo_field.value}**" if not self.titulo_field.value.startswith("**") else self.titulo_field.value,
+            "titulo": f"**{self.titulo_field.value.strip()}**" if not self.titulo_field.value.strip().startswith("**") else self.titulo_field.value.strip(),
             "descricao": self.descricao_field.value,
             "footer": self.footer_field.value or "© Ondrakos · 水の竜",
         }
@@ -1760,7 +1760,7 @@ class RemandarMensagemModal(Modal):
         remandar_pendente[interaction.user.id] = {
             "canal_id": self.canal_id,
             "msg_id":   self.msg_id,
-            "titulo":   f"**{self.titulo_field.value}**" if not self.titulo_field.value.startswith("**") else self.titulo_field.value,
+            "titulo":   f"**{self.titulo_field.value.strip()}**" if not self.titulo_field.value.strip().startswith("**") else self.titulo_field.value.strip(),
             "descricao":self.descricao_field.value,
             "footer":   self.footer_field.value or "© Ondrakos · 水の竜",
         }
@@ -2886,19 +2886,24 @@ class AvisoChatButton(Button):
             return
         cargo = interaction.guild.get_role(CARGO_AVISO_CHAT_ID)
         
-        if self.is_accept:
-            if cargo:
-                if cargo not in membro.roles:
-                    await membro.add_roles(cargo, reason="Aceitou aviso de chat")
-                    await interaction.followup.send("✅ Você aceitou as regras e agora pode falar no chat de voz!", ephemeral=True)
+        try:
+            if self.is_accept:
+                if cargo:
+                    if cargo not in membro.roles:
+                        await membro.add_roles(cargo, reason="Aceitou aviso de chat")
+                        await interaction.followup.send("✅ Você aceitou as regras e agora pode digitar no chat!", ephemeral=True)
+                    else:
+                        await interaction.followup.send("Você já aceitou e possui o cargo.", ephemeral=True)
                 else:
-                    await interaction.followup.send("Você já aceitou e possui o cargo.", ephemeral=True)
+                    await interaction.followup.send(f"⚠️ Erro interno: O cargo com ID {CARGO_AVISO_CHAT_ID} não existe neste servidor.", ephemeral=True)
             else:
-                await interaction.followup.send("⚠️ O cargo ainda não foi configurado pelo administrador.", ephemeral=True)
-        else:
-            if cargo and cargo in membro.roles:
-                await membro.remove_roles(cargo, reason="Recusou aviso de chat")
-            await interaction.followup.send("❌ Você recusou o aviso e não tem permissão para falar.", ephemeral=True)
+                if cargo and cargo in membro.roles:
+                    await membro.remove_roles(cargo, reason="Recusou aviso de chat")
+                await interaction.followup.send("❌ Você recusou o aviso e não tem permissão para digitar no chat.", ephemeral=True)
+        except discord.errors.Forbidden:
+            await interaction.followup.send("❌ **ERRO:** O bot não tem permissão para te dar este cargo! Mova o cargo do Ondrakos para ficar **acima** do cargo que ele deve entregar.", ephemeral=True)
+        except Exception as e:
+            await interaction.followup.send(f"❌ Erro ao atribuir cargo: {e}", ephemeral=True)
 
 class AvisoChatLayout(discord.ui.LayoutView):
     def __init__(self, titulo: str, mensagem: str, footer: str, imagem_bytes: bytes = None, filename: str = None, sep_bytes: bytes = None, sep_filename: str = None):
@@ -2909,7 +2914,7 @@ class AvisoChatLayout(discord.ui.LayoutView):
             itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
             
         itens.extend([
-            discord.ui.TextDisplay(f"**{titulo}**" if not titulo.startswith("**") else titulo),
+            discord.ui.TextDisplay(f"# {titulo.replace('**', '')}"),
             discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
             discord.ui.TextDisplay(mensagem),
             discord.ui.Separator(spacing=discord.SeparatorSpacing.small)
@@ -2977,7 +2982,7 @@ class AvisoChatModal(Modal):
             with open(sep_path, "rb") as f: sep_bytes = f.read()
 
         view = AvisoChatLayout(
-            titulo=f"**{self.titulo.value}**" if not self.titulo.value.startswith("**") else self.titulo.value,
+            titulo=f"**{self.titulo.value.strip()}**" if not self.titulo.value.strip().startswith("**") else self.titulo.value.strip(),
             mensagem=self.mensagem.value,
             footer=self.footer.value or "© Ondrakos · 水の竜",
             imagem_bytes=imagem_bytes,
@@ -2997,7 +3002,7 @@ class AvisoChatModal(Modal):
             await interaction.client.db.salvar_layout(
                 msg_id=msg_enviada.id,
                 canal_id=self.canal.id,
-                titulo=f"**{self.titulo.value}**" if not self.titulo.value.startswith("**") else self.titulo.value,
+                titulo=f"**{self.titulo.value.strip()}**" if not self.titulo.value.strip().startswith("**") else self.titulo.value.strip(),
                 descricao=self.mensagem.value,
                 footer=self.footer.value or "© Ondrakos · 水の竜",
                 estilo="padrao",
