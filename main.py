@@ -3213,17 +3213,28 @@ async def limpar_voz_cmd(interaction: discord.Interaction):
     guild = interaction.guild
     count_apagadas = 0
     canais_afetados = 0
+    
+    def check_msg(m: discord.Message):
+        if m.author == bot.user:
+            # Protege a mensagem de verificação (que usa Layout V2) ou embeds de verificação
+            if m.embeds and any("Verificação" in (e.title or "") for e in m.embeds):
+                return False
+            if m.components:
+                # Pode verificar se há um botão específico, mas por segurança ignoramos msg do bot com components
+                return False
+        return True
+
     for canal in guild.channels:
         if isinstance(canal, (discord.VoiceChannel, discord.StageChannel)):
             try:
-                apagadas = await canal.purge(limit=100)
+                apagadas = await canal.purge(limit=100, check=check_msg)
                 if len(apagadas) > 0:
                     canais_afetados += 1
                     count_apagadas += len(apagadas)
             except Exception as e:
                 print(f"Erro ao limpar canal {canal.name}: {e}")
                 
-    await interaction.followup.send(f"✅ Limpeza concluída! Foram apagadas {count_apagadas} mensagens em {canais_afetados} canais de voz/palco.")
+    await interaction.followup.send(f"✅ Limpeza concluída! Foram apagadas {count_apagadas} mensagens em {canais_afetados} canais de voz/palco (mensagens de verificação foram ignoradas).")
 
 # Adicionar a view vazia para persistência:
 # Colocaremos isso no on_ready do bot: bot.add_view(AvisoChatLayoutVazio())
