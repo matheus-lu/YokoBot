@@ -86,8 +86,8 @@ async def get_channels(request):
                     "channels": []
                 }
                 for channel in category.channels:
-                    # Incluímos canais de texto e de fórum
-                    if str(channel.type) in ['text', 'forum', 'news']:
+                    # Incluímos canais de texto, fórum, notícias, voz e palco
+                    if str(channel.type) in ['text', 'forum', 'news', 'voice', 'stage_voice']:
                         chan_data = {
                             "id": str(channel.id),
                             "name": channel.name,
@@ -111,7 +111,7 @@ async def get_channels(request):
             # Para canais que não estão em nenhuma categoria
             none_cat = {"id": "none", "name": "Sem Categoria", "channels": []}
             for channel in guild.channels:
-                if channel.category_id is None and str(channel.type) in ['text', 'forum', 'news']:
+                if channel.category_id is None and str(channel.type) in ['text', 'forum', 'news', 'voice', 'stage_voice']:
                     chan_data = {
                         "id": str(channel.id),
                         "name": channel.name,
