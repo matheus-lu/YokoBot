@@ -62,6 +62,38 @@ async def send_layout(request):
     except Exception as e:
         return web.json_response({"status": "error", "message": str(e)}, status=500)
 
+async def add_reactions(request):
+    bot = request.app['bot']
+    try:
+        data = await request.json()
+        canais = data.get('canais', [])
+        reacoes = data.get('reacoes', [])
+        
+        if not canais or not reacoes:
+            return web.json_response({"status": "error", "message": "Canais e reações são obrigatórios."}, status=400)
+            
+        async def _react_to_last(c_id, emojis):
+            canal = bot.get_channel(int(c_id))
+            if not canal: return
+            try:
+                # Pegar a última mensagem do próprio bot no canal, ou apenas a última mensagem
+                async for m in canal.history(limit=5):
+                    if m.author.id == bot.user.id:
+                        for r in emojis:
+                            try:
+                                await m.add_reaction(r)
+                                await asyncio.sleep(0.5)
+                            except: pass
+                        break
+            except: pass
+            
+        for c in canais:
+            bot.loop.create_task(_react_to_last(c, reacoes))
+            
+        return web.json_response({"status": "success", "message": "Reações iniciadas em background."})
+    except Exception as e:
+        return web.json_response({"status": "error", "message": str(e)}, status=500)
+
 async def get_channels(request):
     bot = request.app['bot']
     try:
@@ -293,6 +325,7 @@ async def start_server(bot):
     # Rota de envio
     route_send = app.router.add_post('/api/send_layout', send_layout)
     route_action = app.router.add_post('/api/bot_action', bot_action)
+    route_add_reac = app.router.add_post('/api/add_reactions', add_reactions)
     cors.add(route_index)
     cors.add(route_layouts)
     cors.add(route_channels)
@@ -300,6 +333,7 @@ async def start_server(bot):
     cors.add(route_emojis)
     cors.add(route_send)
     cors.add(route_action)
+    cors.add(route_add_reac)
     
     runner = web.AppRunner(app)
     await runner.setup()

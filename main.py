@@ -3321,11 +3321,14 @@ async def on_api_send_layout(canal, tipo, titulo, mensagem, imagem_url, blocos, 
                 msg = await canal.send(view=view)
                 
         if reacoes:
-            for r in reacoes:
-                try:
-                    await msg.add_reaction(r)
-                except Exception as e:
-                    print(f"Erro ao adicionar reacao {r}: {e}")
+            async def _react_bg(m, rcs):
+                for r in rcs:
+                    try:
+                        await m.add_reaction(r)
+                        await asyncio.sleep(0.5)
+                    except Exception as e:
+                        print(f"Erro ao adicionar reacao {r}: {e}")
+            bot.loop.create_task(_react_bg(msg, reacoes))
         
         try:
             import json

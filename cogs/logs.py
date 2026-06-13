@@ -8,6 +8,7 @@ from datetime import datetime, timezone, timedelta
 BRT = timezone(timedelta(hours=-3))
 from utils import gerar_imagem_log_delete
 import config
+import io
 
 
 class LogsCog(commands.Cog):
@@ -91,7 +92,7 @@ class LogsCog(commands.Cog):
                 nomes = ", ".join(a.filename for a in message.attachments)
                 embed.add_field(name="📎 Anexos", value=nomes, inline=False)
             if avatar_bytes:
-                buf = gerar_imagem_log_delete(
+                buf, is_too_long = gerar_imagem_log_delete(
                     username=message.author.display_name, avatar_bytes=avatar_bytes,
                     conteudo=message.content, user_id=message.author.id,
                     guild_id=message.guild.id, canal_id=message.channel.id,
@@ -99,8 +100,13 @@ class LogsCog(commands.Cog):
                     deletado_por="Bot (automático)",
                 )
                 arquivo = discord.File(buf, filename="log_delete.png")
+                files = [arquivo]
+                if is_too_long:
+                    txt_buf = io.BytesIO(message.content.encode("utf-8"))
+                    files.append(discord.File(txt_buf, filename="mensagem_completa.txt"))
+                
                 embed.set_image(url="attachment://log_delete.png")
-                await canal.send(file=arquivo, embed=embed)
+                await canal.send(files=files, embed=embed)
             else:
                 await canal.send(embed=embed)
             return
@@ -136,7 +142,7 @@ class LogsCog(commands.Cog):
             avatar_bytes = None
         if avatar_bytes:
             deletado_por_nome = deletado_por.display_name if deletado_por and deletado_por.id != message.author.id else None
-            buf = gerar_imagem_log_delete(
+            buf, is_too_long = gerar_imagem_log_delete(
                 username=message.author.display_name, avatar_bytes=avatar_bytes,
                 conteudo=message.content, user_id=message.author.id,
                 guild_id=message.guild.id, canal_id=message.channel.id,
@@ -144,6 +150,11 @@ class LogsCog(commands.Cog):
                 deletado_por=deletado_por_nome,
             )
             arquivo = discord.File(buf, filename="log_delete.png")
+            files = [arquivo]
+            if is_too_long:
+                txt_buf = io.BytesIO(message.content.encode("utf-8"))
+                files.append(discord.File(txt_buf, filename="mensagem_completa.txt"))
+
             embed = discord.Embed(title="🗑️ Mensagem Deletada", color=discord.Color.dark_red())
             embed.add_field(name="👤 Autor", value=f"{message.author.mention} `{message.author.id}`", inline=True)
             embed.add_field(name="📢 Canal", value=f"{message.channel.mention} `{message.channel.id}`", inline=True)
@@ -157,7 +168,7 @@ class LogsCog(commands.Cog):
                     inline=False,
                 )
             embed.set_image(url="attachment://log_delete.png")
-            await canal.send(file=arquivo, embed=embed)
+            await canal.send(files=files, embed=embed)
         else:
             embed = discord.Embed(title="🗑️ Mensagem Deletada", color=discord.Color.dark_red())
             embed.add_field(name="👤 Autor", value=f"{message.author.mention}\n`{message.author.id}`", inline=True)
@@ -235,15 +246,20 @@ class LogsCog(commands.Cog):
         embed.add_field(name="📝 Antes", value="```\n" + (before.content or "*sem texto*") + "\n```", inline=False)
         embed.add_field(name="✅ Depois", value="```\n" + (after.content or "*sem texto*") + "\n```", inline=False)
         if avatar_bytes:
-            buf = gerar_imagem_log_delete(
+            buf, is_too_long = gerar_imagem_log_delete(
                 username=before.author.display_name, avatar_bytes=avatar_bytes,
                 conteudo="Antes: " + before.content, user_id=before.author.id,
                 guild_id=before.guild.id, canal_id=before.channel.id,
                 msg_id=before.id, timestamp=timestamp,
             )
             arquivo = discord.File(buf, filename="log_edit.png")
+            files = [arquivo]
+            if is_too_long:
+                txt_buf = io.BytesIO(before.content.encode("utf-8"))
+                files.append(discord.File(txt_buf, filename="mensagem_antes_completa.txt"))
+                
             embed.set_image(url="attachment://log_edit.png")
-            await canal.send(file=arquivo, embed=embed)
+            await canal.send(files=files, embed=embed)
         else:
             embed.set_thumbnail(url=before.author.display_avatar.url)
             await canal.send(embed=embed)

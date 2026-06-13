@@ -345,13 +345,16 @@ def gerar_imagem_log_delete(username, avatar_bytes, conteudo, user_id, guild_id,
     if not linhas:
         linhas = ["*sem conteúdo de texto*"]
         
-    # Limitar um número absurdo de linhas para não gerar imagem gigante
-    max_linhas = 25
+    # Limitar o número de linhas para não gerar imagem gigante
+    max_linhas = 5
+    is_too_long = False
     if len(linhas) > max_linhas:
         linhas = linhas[:max_linhas]
-        linhas.append("... (mensagem muito longa)")
+        linhas.append("... (mensagem muito longa, txt anexado)")
+        is_too_long = True
 
-    # Calcular Altura Dinâmica
+    # Altura estática para o background não esticar
+    H = 400
     av_size, border = 80, 3
     sep_y = PAD + av_size + border*2 + 12
     msg_y = sep_y + 14
@@ -359,17 +362,15 @@ def gerar_imagem_log_delete(username, avatar_bytes, conteudo, user_id, guild_id,
     # Cada linha tem cerca de 32px de altura
     altura_texto = len(linhas) * 32
     sep2_y = msg_y + altura_texto + 14
-    
-    H = sep2_y + 40 # 40px para o ID da mensagem e padding final
 
-    # Fundo aleatório dimensionado para a nova altura
+    # Fundo aleatório
     import glob, random as _rnd
     base_dir = os.path.dirname(os.path.abspath(__file__))
     fundos = sorted(glob.glob(os.path.join(base_dir, "fundo_log*.png")))
     if fundos:
         # Pega a imagem base
         img_base = Image.open(_rnd.choice(fundos)).convert("RGBA")
-        # Recorta/Redimensiona (usamos crop ou resize, resize é mais fácil)
+        # Usamos resize no W e H fixo de 900x400
         img = img_base.resize((W, H), Image.LANCZOS)
     else:
         img = Image.new("RGBA", (W, H), (10, 8, 20))
@@ -422,4 +423,4 @@ def gerar_imagem_log_delete(username, avatar_bytes, conteudo, user_id, guild_id,
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
     buf.seek(0)
-    return buf
+    return buf, is_too_long
