@@ -2945,7 +2945,21 @@ class DynamicLayout(discord.ui.LayoutView):
                 itens.append(discord.ui.TextDisplay(b['content']))
             elif b['type'] == 'titulo':
                 titulo_limpo = b['content'].replace('**', '')
-                itens.append(discord.ui.TextDisplay(f"**{titulo_limpo}**" if not titulo_limpo.startswith("**") else titulo_limpo))
+                if '|' in titulo_limpo:
+                    # Apply format_titulo logic natively here
+                    partes = titulo_limpo.split('|', 2)
+                    if len(partes) >= 2:
+                        meio = partes[1]
+                        start_space = len(meio) - len(meio.lstrip())
+                        end_space = len(meio) - len(meio.rstrip())
+                        esq = meio[:start_space]
+                        dir_esp = meio[-end_space:] if end_space > 0 else ""
+                        centro = meio[start_space:-end_space] if end_space > 0 else meio[start_space:]
+                        meio_formatado = f"{esq}**{centro}**{dir_esp}" if centro else meio
+                        t_formatado = f"{partes[0]}|{meio_formatado}|{partes[2]}" if len(partes) == 3 else f"{partes[0]}|{meio_formatado}"
+                        itens.append(discord.ui.TextDisplay(t_formatado))
+                else:
+                    itens.append(discord.ui.TextDisplay(f"**{titulo_limpo}**" if not titulo_limpo.startswith("**") else titulo_limpo))
             elif b['type'] == 'separador':
                 if b.get('content') == 'imagem_bot':
                     itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem("attachment://sep_anuncio.png")))
@@ -2956,133 +2970,132 @@ class DynamicLayout(discord.ui.LayoutView):
                     itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem(f"attachment://{b['filename']}")))
                 elif b.get('url'):
                     itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem(b['url'])))
+            elif b['type'] == 'rodape':
+                f = b.get('content', '')
+                if f: itens.append(discord.ui.TextDisplay(f"-# {f}" if not f.startswith("-#") else f))
+            elif b['type'] == 'botoes':
+                row = discord.ui.ActionRow(AvisoChatButton(is_accept=True), AvisoChatButton(is_accept=False))
+                itens.append(row)
         
-        if footer:
+        # In case footer or botoes are passed as variables but not found in blocks (fallback)
+        has_rodape = any(b['type'] == 'rodape' for b in blocos)
+        has_botoes = any(b['type'] == 'botoes' for b in blocos)
+        
+        if footer and not has_rodape:
             itens.append(discord.ui.TextDisplay(f"-# {footer}" if not footer.startswith("-#") else footer))
             
-        if tipo == 'aviso-chat':
+        if tipo == 'aviso-chat' and not has_botoes:
             row = discord.ui.ActionRow(AvisoChatButton(is_accept=True), AvisoChatButton(is_accept=False))
-            self.add_item(discord.ui.Container(*itens, row, accent_color=DORORO_COLOR.value))
-        else:
-            self.add_item(discord.ui.Container(*itens, accent_color=DORORO_COLOR.value))
+            itens.append(row)
+            
+        self.add_item(discord.ui.Container(*itens, accent_color=DORORO_COLOR.value))
         self._files = files
 
-class AvisoPadraoLayout(discord.ui.LayoutView):
-    def __init__(self, titulo: str, mensagem: str, footer: str, imagem_bytes: bytes = None, filename: str = None, sep_bytes: bytes = None, sep_filename: str = None):
-        super().__init__(timeout=None)
-        itens = []
-        if imagem_bytes and filename:
-            itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem(f"attachment://{filename}")))
-            itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
-            
-        titulo_limpo = titulo.replace('**', '')
-        if '|' in titulo_limpo:
-            partes = titulo_limpo.split('|', 2)
-            if len(partes) >= 2:
-                meio = partes[1]
-                start_space = len(meio) - len(meio.lstrip())
-                end_space = len(meio) - len(meio.rstrip())
-                esq = meio[:start_space]
-                
-                if end_space > 0:
-                    dir_esp = meio[-end_space:]
-                    centro = meio[start_space:-end_space]
-                else:
-                    dir_esp = ""
-                    centro = meio[start_space:]
-                
-                meio_formatado = f"{esq}**{centro}**{dir_esp}" if centro else meio
-                
-                if len(partes) == 3:
-                    titulo_formatado = f"{partes[0]}|{meio_formatado}|{partes[2]}"
-                else:
-                    titulo_formatado = f"{partes[0]}|{meio_formatado}"
-        else:
-            start_space = len(titulo_limpo) - len(titulo_limpo.lstrip())
-            end_space = len(titulo_limpo) - len(titulo_limpo.rstrip())
-            esq = titulo_limpo[:start_space]
+def format_titulo_layout(titulo):
+    titulo_limpo = titulo.replace('**', '')
+    if '|' in titulo_limpo:
+        partes = titulo_limpo.split('|', 2)
+        if len(partes) >= 2:
+            meio = partes[1]
+            start_space = len(meio) - len(meio.lstrip())
+            end_space = len(meio) - len(meio.rstrip())
+            esq = meio[:start_space]
             if end_space > 0:
-                dir_esp = titulo_limpo[-end_space:]
-                centro = titulo_limpo[start_space:-end_space]
+                dir_esp = meio[-end_space:]
+                centro = meio[start_space:-end_space]
             else:
                 dir_esp = ""
-                centro = titulo_limpo[start_space:]
-            titulo_formatado = f"{esq}**{centro}**{dir_esp}" if centro else titulo_limpo
+                centro = meio[start_space:]
+            meio_formatado = f"{esq}**{centro}**{dir_esp}" if centro else meio
+            if len(partes) == 3: return f"{partes[0]}|{meio_formatado}|{partes[2]}"
+            else: return f"{partes[0]}|{meio_formatado}"
+    else:
+        start_space = len(titulo_limpo) - len(titulo_limpo.lstrip())
+        end_space = len(titulo_limpo) - len(titulo_limpo.rstrip())
+        esq = titulo_limpo[:start_space]
+        if end_space > 0:
+            dir_esp = titulo_limpo[-end_space:]
+            centro = titulo_limpo[start_space:-end_space]
+        else:
+            dir_esp = ""
+            centro = titulo_limpo[start_space:]
+        return f"{esq}**{centro}**{dir_esp}" if centro else titulo_limpo
 
-        itens.extend([
-            discord.ui.TextDisplay(titulo_formatado),
-            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
-            discord.ui.TextDisplay(mensagem),
-            discord.ui.Separator(spacing=discord.SeparatorSpacing.small)
-        ])
+class AvisoPadraoLayout(discord.ui.LayoutView):
+    def __init__(self, titulo: str = "", mensagem: str = "", footer: str = "", imagem_bytes: bytes = None, filename: str = None, sep_bytes: bytes = None, sep_filename: str = None, blocos: list = None):
+        super().__init__(timeout=None)
         
-        if sep_bytes and sep_filename:
-            itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem(f"attachment://{sep_filename}")))
-            itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
-            
-        if footer:
-            itens.append(discord.ui.TextDisplay(f"-# {footer}" if not footer.startswith("-#") else footer))
-            
+        if not blocos:
+            blocos = []
+            if imagem_bytes and filename: blocos.append({"type": "imagem"})
+            if titulo: blocos.append({"type": "titulo", "content": titulo})
+            blocos.append({"type": "separador", "content": "linha"})
+            if mensagem: blocos.append({"type": "texto", "content": mensagem})
+            if sep_bytes and sep_filename: blocos.append({"type": "separador", "content": "imagem_bot"})
+            else: blocos.append({"type": "separador", "content": "linha"})
+            if footer: blocos.append({"type": "rodape", "content": footer})
+
+        itens = []
+        for b in blocos:
+            t = b.get('type')
+            if t == 'imagem':
+                if imagem_bytes and filename:
+                    itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem(f"attachment://{filename}")))
+            elif t == 'titulo':
+                titulo_formatado = format_titulo_layout(b.get('content', ''))
+                itens.append(discord.ui.TextDisplay(titulo_formatado))
+            elif t == 'texto':
+                itens.append(discord.ui.TextDisplay(b.get('content', '')))
+            elif t == 'separador':
+                if b.get('content') == 'imagem_bot' and sep_bytes and sep_filename:
+                    itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem(f"attachment://{sep_filename}")))
+                else:
+                    itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+            elif t == 'rodape':
+                f = b.get('content', '')
+                if f: itens.append(discord.ui.TextDisplay(f"-# {f}" if not f.startswith("-#") else f))
+
         self.add_item(discord.ui.Container(*itens, accent_color=DORORO_COLOR.value))
 
 class AvisoChatLayout(discord.ui.LayoutView):
-    def __init__(self, titulo: str, mensagem: str, footer: str, imagem_bytes: bytes = None, filename: str = None, sep_bytes: bytes = None, sep_filename: str = None):
+    def __init__(self, titulo: str = "", mensagem: str = "", footer: str = "", imagem_bytes: bytes = None, filename: str = None, sep_bytes: bytes = None, sep_filename: str = None, blocos: list = None):
         super().__init__(timeout=None)
-        itens = []
-        if imagem_bytes and filename:
-            itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem(f"attachment://{filename}")))
-            itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
-            
-        titulo_limpo = titulo.replace('**', '')
-        if '|' in titulo_limpo:
-            partes = titulo_limpo.split('|', 2)
-            if len(partes) >= 2:
-                meio = partes[1]
-                start_space = len(meio) - len(meio.lstrip())
-                end_space = len(meio) - len(meio.rstrip())
-                esq = meio[:start_space]
-                
-                if end_space > 0:
-                    dir_esp = meio[-end_space:]
-                    centro = meio[start_space:-end_space]
-                else:
-                    dir_esp = ""
-                    centro = meio[start_space:]
-                
-                meio_formatado = f"{esq}**{centro}**{dir_esp}" if centro else meio
-                
-                if len(partes) == 3:
-                    titulo_formatado = f"{partes[0]}|{meio_formatado}|{partes[2]}"
-                else:
-                    titulo_formatado = f"{partes[0]}|{meio_formatado}"
-        else:
-            start_space = len(titulo_limpo) - len(titulo_limpo.lstrip())
-            end_space = len(titulo_limpo) - len(titulo_limpo.rstrip())
-            esq = titulo_limpo[:start_space]
-            if end_space > 0:
-                dir_esp = titulo_limpo[-end_space:]
-                centro = titulo_limpo[start_space:-end_space]
-            else:
-                dir_esp = ""
-                centro = titulo_limpo[start_space:]
-            titulo_formatado = f"{esq}**{centro}**{dir_esp}" if centro else titulo_limpo
-
-        itens.extend([
-            discord.ui.TextDisplay(titulo_formatado),
-            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
-            discord.ui.TextDisplay(mensagem),
-            discord.ui.Separator(spacing=discord.SeparatorSpacing.small)
-        ])
         
-        if sep_bytes and sep_filename:
-            itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem(f"attachment://{sep_filename}")))
-            itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
-            
-        if footer:
-            itens.append(discord.ui.TextDisplay(f"-# {footer}" if not footer.startswith("-#") else footer))
-            
-        row = discord.ui.ActionRow(AvisoChatButton(is_accept=True), AvisoChatButton(is_accept=False))
-        self.add_item(discord.ui.Container(*itens, row, accent_color=DORORO_COLOR.value))
+        if not blocos:
+            blocos = []
+            if imagem_bytes and filename: blocos.append({"type": "imagem"})
+            if titulo: blocos.append({"type": "titulo", "content": titulo})
+            blocos.append({"type": "separador", "content": "linha"})
+            if mensagem: blocos.append({"type": "texto", "content": mensagem})
+            if sep_bytes and sep_filename: blocos.append({"type": "separador", "content": "imagem_bot"})
+            else: blocos.append({"type": "separador", "content": "linha"})
+            if footer: blocos.append({"type": "rodape", "content": footer})
+            blocos.append({"type": "botoes"})
+
+        itens = []
+        for b in blocos:
+            t = b.get('type')
+            if t == 'imagem':
+                if imagem_bytes and filename:
+                    itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem(f"attachment://{filename}")))
+            elif t == 'titulo':
+                titulo_formatado = format_titulo_layout(b.get('content', ''))
+                itens.append(discord.ui.TextDisplay(titulo_formatado))
+            elif t == 'texto':
+                itens.append(discord.ui.TextDisplay(b.get('content', '')))
+            elif t == 'separador':
+                if b.get('content') == 'imagem_bot' and sep_bytes and sep_filename:
+                    itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem(f"attachment://{sep_filename}")))
+                else:
+                    itens.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+            elif t == 'rodape':
+                f = b.get('content', '')
+                if f: itens.append(discord.ui.TextDisplay(f"-# {f}" if not f.startswith("-#") else f))
+            elif t == 'botoes':
+                row = discord.ui.ActionRow(AvisoChatButton(is_accept=True), AvisoChatButton(is_accept=False))
+                itens.append(row)
+
+        self.add_item(discord.ui.Container(*itens, accent_color=DORORO_COLOR.value))
 
 class AvisoChatLayoutVazio(discord.ui.LayoutView):
     def __init__(self):

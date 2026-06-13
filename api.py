@@ -44,19 +44,7 @@ async def send_layout(request):
         imagem_url = data.get('imagem_url', '')
         blocos = data.get('blocos', [])
         
-        if not titulo and blocos:
-            for b in blocos:
-                if b.get('type') == 'titulo':
-                    titulo = b.get('content', '')
-                    break
-                    
-        if not mensagem and blocos:
-            for b in blocos:
-                if b.get('type') == 'texto':
-                    mensagem = b.get('content', '')
-                    break
-        
-        if not canal_id or (not titulo and not mensagem and not blocos):
+        if not canal_id or not blocos:
             return web.json_response({"status": "error", "message": "Canal e conteúdo são obrigatórios."}, status=400)
             
         canal = bot.get_channel(int(canal_id))
@@ -130,8 +118,24 @@ async def get_channels(request):
 
         return web.json_response({"status": "success", "categories": data})
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        return web.json_response({"status": "error", "message": str(e)}, status=500)
+
+async def get_roles(request):
+    bot = request.app['bot']
+    try:
+        data = []
+        for guild in bot.guilds:
+            for role in guild.roles:
+                if role.name != "@everyone" and not role.managed:
+                    data.append({
+                        "id": str(role.id),
+                        "name": role.name,
+                        "color": str(role.color)
+                    })
+        # Sort roles alphabetically for better UX
+        data.sort(key=lambda r: r['name'].lower())
+        return web.json_response({"status": "success", "roles": data})
+    except Exception as e:
         return web.json_response({"status": "error", "message": str(e)}, status=500)
 
 async def get_emojis(request):
@@ -276,6 +280,7 @@ async def start_server(bot):
     route_index = app.router.add_get('/', index)
     route_layouts = app.router.add_get('/api/layouts', get_layouts)
     route_channels = app.router.add_get('/api/channels', get_channels)
+    route_roles = app.router.add_get('/api/roles', get_roles)
     route_emojis = app.router.add_get('/api/emojis', get_emojis)
     
     # Rota de envio
@@ -284,6 +289,7 @@ async def start_server(bot):
     cors.add(route_index)
     cors.add(route_layouts)
     cors.add(route_channels)
+    cors.add(route_roles)
     cors.add(route_emojis)
     cors.add(route_send)
     cors.add(route_action)
