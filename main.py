@@ -3206,6 +3206,25 @@ async def varredura_freegames_cmd(interaction: discord.Interaction, limite: int 
         
     await interaction.followup.send(f"✅ Varredura completa! Reações aplicadas nas últimas {count} mensagens do freegames.")
 
+@bot.tree.command(name="limpar_voz", description="Limpa as mensagens dos chats de texto dos canais de voz e de palco")
+@app_commands.checks.has_permissions(administrator=True)
+async def limpar_voz_cmd(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
+    guild = interaction.guild
+    count_apagadas = 0
+    canais_afetados = 0
+    for canal in guild.channels:
+        if isinstance(canal, (discord.VoiceChannel, discord.StageChannel)):
+            try:
+                apagadas = await canal.purge(limit=100)
+                if len(apagadas) > 0:
+                    canais_afetados += 1
+                    count_apagadas += len(apagadas)
+            except Exception as e:
+                print(f"Erro ao limpar canal {canal.name}: {e}")
+                
+    await interaction.followup.send(f"✅ Limpeza concluída! Foram apagadas {count_apagadas} mensagens em {canais_afetados} canais de voz/palco.")
+
 # Adicionar a view vazia para persistência:
 # Colocaremos isso no on_ready do bot: bot.add_view(AvisoChatLayoutVazio())
 
