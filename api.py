@@ -43,6 +43,7 @@ async def send_layout(request):
         mensagem = data.get('mensagem', '')
         imagem_url = data.get('imagem_url', '')
         blocos = data.get('blocos', [])
+        reacoes = data.get('reacoes', [])
         
         if not canal_id or not blocos:
             return web.json_response({"status": "error", "message": "Canal e conteúdo são obrigatórios."}, status=400)
@@ -52,7 +53,7 @@ async def send_layout(request):
             return web.json_response({"status": "error", "message": "Canal não encontrado no Discord do bot."}, status=404)
             
         fut = asyncio.get_running_loop().create_future()
-        bot.dispatch('api_send_layout', canal, tipo, titulo, mensagem, imagem_url, blocos, fut)
+        bot.dispatch('api_send_layout', canal, tipo, titulo, mensagem, imagem_url, blocos, reacoes, fut)
         
         # Wait for main.py to process it
         msg_id = await fut
@@ -248,7 +249,13 @@ async def bot_action(request):
             # Wait, api_send_layout only accepts imagem_url, so if it's remandar, we could pass a special flag or just remandar without image for now, OR we can reconstruct the file.
             # Since remandar is just for testing/quick things, let's just dispatch without image for simplicity, or if we want to be exact we could modify `api_send_layout`.
             # To keep it simple: we send imagem_url as None.
-            bot.dispatch('api_send_layout', canal, tipo, titulo, mensagem, None, [], fut)
+            reacoes_remandar = []
+            import json
+            try:
+                reacoes_remandar = json.loads(layout[6]) if layout[6] else []
+            except: pass
+            
+            bot.dispatch('api_send_layout', canal, tipo, titulo, mensagem, None, [], reacoes_remandar, fut)
             novo_msg_id = await fut
             return web.json_response({"status": "success", "msg_id": novo_msg_id})
 

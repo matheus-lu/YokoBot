@@ -3253,7 +3253,7 @@ async def limpar_voz_cmd(interaction: discord.Interaction):
 # Colocaremos isso no on_ready do bot: bot.add_view(AvisoChatLayoutVazio())
 
 @bot.event
-async def on_api_send_layout(canal, tipo, titulo, mensagem, imagem_url, blocos, fut):
+async def on_api_send_layout(canal, tipo, titulo, mensagem, imagem_url, blocos, reacoes, fut):
     try:
         import aiohttp
         imagem_bytes = None
@@ -3316,9 +3316,16 @@ async def on_api_send_layout(canal, tipo, titulo, mensagem, imagem_url, blocos, 
                 msg = await canal.send(files=arquivos, view=view)
             else:
                 msg = await canal.send(view=view)
-        
+                
+        if reacoes:
+            for r in reacoes:
+                try:
+                    await msg.add_reaction(r)
+                except Exception as e:
+                    print(f"Erro ao adicionar reacao {r}: {e}")
         
         try:
+            import json
             await bot.db.salvar_layout(
                 msg_id=msg.id,
                 canal_id=canal.id,
@@ -3326,6 +3333,7 @@ async def on_api_send_layout(canal, tipo, titulo, mensagem, imagem_url, blocos, 
                 descricao=mensagem,
                 footer="© Ondrakos · 水の竜",
                 estilo='v2',
+                reacoes=json.dumps(reacoes) if reacoes else "[]",
                 imagem_bytes=imagem_bytes,
                 imagem_nome=filename,
                 tipo=tipo
