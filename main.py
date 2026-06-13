@@ -2937,9 +2937,12 @@ class AvisoChatButton(Button):
             await interaction.followup.send(f"❌ Erro ao atribuir cargo: {e}", ephemeral=True)
 
 class DynamicLayout(discord.ui.LayoutView):
-    def __init__(self, blocos, files, footer, tipo):
+    def __init__(self, blocos, files, footer, tipo, imagem_filename=None):
         super().__init__(timeout=None)
         itens = []
+        if imagem_filename:
+            itens.append(discord.ui.MediaGallery(discord.MediaGalleryItem(f"attachment://{imagem_filename}")))
+            
         for b in blocos:
             if b['type'] == 'texto':
                 itens.append(discord.ui.TextDisplay(b['content']))
@@ -3301,7 +3304,7 @@ async def on_api_send_layout(canal, tipo, titulo, mensagem, imagem_url, blocos, 
                         pass
             
             # Novo sistema dinâmico de blocos!
-            view = DynamicLayout(blocos=blocos, files=arquivos, footer="© Ondrakos · 水の竜", tipo=tipo)
+            view = DynamicLayout(blocos=blocos, files=arquivos, footer="© Ondrakos · 水の竜", tipo=tipo, imagem_filename=filename)
             if arquivos:
                 msg = await canal.send(files=arquivos, view=view)
             else:
