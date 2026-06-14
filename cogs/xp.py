@@ -231,12 +231,11 @@ class XPCog(commands.Cog):
             for canal in guild.voice_channels:
                 try:
                     def check(m):
-                        if m.author.id == self.bot.user.id and m.components:
-                            for comp in m.components:
-                                if getattr(comp, "type", None) == discord.ComponentType.action_row:
-                                    for child in getattr(comp, "children", []):
-                                        if getattr(child, "custom_id", "") in ["aviso_chat_aceitar", "aviso_chat_recusar"]:
-                                            return False
+                        if m.author.id == self.bot.user.id:
+                            if m.embeds and any("Verificação" in (e.title or "") for e in m.embeds):
+                                return False
+                            if m.components:
+                                return False
                         return True
                     await canal.purge(limit=100, check=check)
                 except Exception:
