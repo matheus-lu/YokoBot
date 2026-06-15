@@ -138,9 +138,7 @@ YDL_OPTIONS_SINGLE = {
     "noplaylist": True,
     "source_address": "0.0.0.0",
     "ignoreerrors": False,
-    "username": "oauth2",
-    "password": "",
-    "cachedir": ".yt-dlp-cache",
+    "cookiefile": config.COOKIES_PATH,
     "js_runtimes": {"node": {"path": "/usr/bin/node"}},
     "extractor_args": {
         "youtube": {"player_client": ["ios", "android", "web"]},
@@ -1033,6 +1031,17 @@ async def tocar_proxima(guild, bot):
                 ffmpeg_opts["before_options"] += f' -user_agent "{v}"'
             elif k.lower() not in ("cookie",):
                 headers_str += f"{k}: {v}\r\n"
+                
+    # Injeta cookies do yt-dlp no FFmpeg para evitar 403 em URLs autenticadas
+    try:
+        import http.cookiejar
+        cj = http.cookiejar.MozillaCookieJar(config.COOKIES_PATH)
+        cj.load(ignore_discard=True, ignore_expires=True)
+        cookie_str = "; ".join([f"{c.name}={c.value}" for c in cj if "youtube.com" in c.domain])
+        if cookie_str:
+            headers_str += f"Cookie: {cookie_str}\r\n"
+    except Exception as e:
+        print(f"Erro ao carregar cookies no ffmpeg: {e}")
 
     if headers_str:
         ffmpeg_opts["before_options"] += f' -headers "{headers_str}"'
