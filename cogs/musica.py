@@ -1017,26 +1017,16 @@ async def tocar_proxima(guild, bot):
         return
         
     # ── Obter fonte de áudio ──────────────────────────────────
-    import subprocess as _sp
+    import subprocess as _sp, sys as _sys
     source = None
     ytdlp_proc = None
     target = musica.get("pagina") or musica.get("webpage_url") or musica.get("url", "")
+    is_yt = target and ("youtube.com" in target or "youtu.be" in target)
 
-    # Se já falhou antes, tenta cobalt.tools como fonte alternativa
-    if musica.get("falhas", 0) >= 1 and target and ("youtube.com" in target or "youtu.be" in target):
-        cobalt_url = await _cobalt_audio_url(target)
-        if cobalt_url:
-            print(f"[Cobalt] ✅ Stream alternativo para: {musica['titulo']}")
-            source = discord.FFmpegPCMAudio(
-                cobalt_url, executable=config.FFMPEG_PATH,
-                before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
-                options="-vn",
-            )
-
-    # Método principal: yt-dlp pipe (yt-dlp cuida de headers/cookies/auth)
-    if source is None and target:
+    # Método 1: yt-dlp pipe (yt-dlp cuida de headers/cookies/auth)
+    if target:
         ytdlp_cmd = [
-            'yt-dlp',
+            _sys.executable, '-m', 'yt_dlp',
             '-f', 'bestaudio[ext=webm]/bestaudio/best',
             '--cookies', config.COOKIES_PATH,
             '--extractor-args', 'youtube:player_client=default,-android_sdkless',
@@ -1054,6 +1044,18 @@ async def tocar_proxima(guild, bot):
             )
         except Exception as e:
             print(f"[yt-dlp pipe] Erro ao iniciar: {e}")
+
+    # Método 2 (fallback): cobalt.tools — stream via servidores externos
+    if source is None and is_yt:
+        print(f"[Cobalt] Tentando fonte alternativa para: {musica.get('titulo', '?')}")
+        cobalt_url = await _cobalt_audio_url(target)
+        if cobalt_url:
+            print(f"[Cobalt] ✅ Stream obtido!")
+            source = discord.FFmpegPCMAudio(
+                cobalt_url, executable=config.FFMPEG_PATH,
+                before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+                options="-vn",
+            )
 
     if source is None:
         print(f"MUSICA SKIP: não foi possível obter áudio para {musica.get('titulo', '?')}")
