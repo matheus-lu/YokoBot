@@ -1023,8 +1023,20 @@ async def tocar_proxima(guild, bot):
     target = musica.get("pagina") or musica.get("webpage_url") or musica.get("url", "")
     is_yt = target and ("youtube.com" in target or "youtu.be" in target)
 
-    # Método 1: yt-dlp pipe (yt-dlp cuida de headers/cookies/auth)
-    if target:
+    # Método 1 Principal: cobalt.tools — stream via servidores externos (evita 403 do IP do datacenter)
+    if is_yt:
+        print(f"[Cobalt] Tentando stream externo para: {musica.get('titulo', '?')}")
+        cobalt_url = await _cobalt_audio_url(target)
+        if cobalt_url:
+            print(f"[Cobalt] ✅ Stream obtido!")
+            source = discord.FFmpegPCMAudio(
+                cobalt_url, executable=config.FFMPEG_PATH,
+                before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+                options="-vn",
+            )
+
+    # Método 2 (fallback): yt-dlp pipe direto
+    if source is None and target:
         ytdlp_cmd = [
             _sys.executable, '-m', 'yt_dlp',
             '-f', 'bestaudio[ext=webm]/bestaudio/best',
@@ -1044,18 +1056,6 @@ async def tocar_proxima(guild, bot):
             )
         except Exception as e:
             print(f"[yt-dlp pipe] Erro ao iniciar: {e}")
-
-    # Método 2 (fallback): cobalt.tools — stream via servidores externos
-    if source is None and is_yt:
-        print(f"[Cobalt] Tentando fonte alternativa para: {musica.get('titulo', '?')}")
-        cobalt_url = await _cobalt_audio_url(target)
-        if cobalt_url:
-            print(f"[Cobalt] ✅ Stream obtido!")
-            source = discord.FFmpegPCMAudio(
-                cobalt_url, executable=config.FFMPEG_PATH,
-                before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
-                options="-vn",
-            )
 
     if source is None:
         print(f"MUSICA SKIP: não foi possível obter áudio para {musica.get('titulo', '?')}")
