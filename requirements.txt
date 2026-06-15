@@ -4,6 +4,7 @@ aiohttp
 yt-dlp
 Pillow
 PyNaCl
+davey
 beautifulsoup4
 requests
 spotipy
