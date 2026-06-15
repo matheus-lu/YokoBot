@@ -102,6 +102,34 @@ async def resolver_spotify(url):
     return faixas
 
 
+# ── Cobalt.tools — fonte alternativa de áudio ──────────────
+async def _cobalt_audio_url(video_url):
+    """Obtém URL de stream de áudio via cobalt.tools como fallback ao YouTube."""
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                "https://api.cobalt.tools/",
+                headers={
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                },
+                json={
+                    "url": video_url,
+                    "downloadMode": "audio",
+                    "audioFormat": "opus",
+                },
+                timeout=aiohttp.ClientTimeout(total=15),
+            ) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    if data.get("status") in ("tunnel", "redirect", "stream") and data.get("url"):
+                        return data["url"]
+                else:
+                    print(f"[Cobalt] HTTP {resp.status}")
+    except Exception as e:
+        print(f"[Cobalt] Erro: {e}")
+    return None
+
 # ── Constantes yt-dlp ──────────────────────────────────────
 YDL_OPTIONS_SINGLE = {
     "format": "bestaudio[ext=webm]/bestaudio/best",
@@ -988,29 +1016,61 @@ async def tocar_proxima(guild, bot):
         tocando_agora.pop(guild.id, None)
         return
         
-    ffmpeg_opts = dict(FFMPEG_OPTIONS)
-    headers = musica.get("http_headers", {})
-    if headers:
-        headers_str = ""
-        for k, v in headers.items():
-            if k.lower() == "user-agent":
-                ffmpeg_opts["before_options"] += f' -user_agent "{v}"'
-            else:
-                headers_str += f"{k}: {v}\r\n"
-        if headers_str:
-            ffmpeg_opts["before_options"] += f' -headers "{headers_str}"'
-            
-    source = discord.FFmpegPCMAudio(musica["url"], executable=config.FFMPEG_PATH, **ffmpeg_opts)
+    # ── Obter fonte de áudio ──────────────────────────────────
+    import subprocess as _sp
+    source = None
+    ytdlp_proc = None
+    target = musica.get("pagina") or musica.get("webpage_url") or musica.get("url", "")
+
+    # Se já falhou antes, tenta cobalt.tools como fonte alternativa
+    if musica.get("falhas", 0) >= 1 and target and ("youtube.com" in target or "youtu.be" in target):
+        cobalt_url = await _cobalt_audio_url(target)
+        if cobalt_url:
+            print(f"[Cobalt] ✅ Stream alternativo para: {musica['titulo']}")
+            source = discord.FFmpegPCMAudio(
+                cobalt_url, executable=config.FFMPEG_PATH,
+                before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+                options="-vn",
+            )
+
+    # Método principal: yt-dlp pipe (yt-dlp cuida de headers/cookies/auth)
+    if source is None and target:
+        ytdlp_cmd = [
+            'yt-dlp',
+            '-f', 'bestaudio[ext=webm]/bestaudio/best',
+            '--cookies', config.COOKIES_PATH,
+            '--extractor-args', 'youtube:player_client=default,-android_sdkless',
+            '--extractor-args', 'youtubepot-bgutilscript:server_home=/application/bgutil-ytdlp-pot-provider/server',
+            '-o', '-',
+            '--quiet', '--no-warnings', '--no-playlist',
+            target,
+        ]
+        try:
+            ytdlp_proc = _sp.Popen(ytdlp_cmd, stdout=_sp.PIPE, stderr=_sp.DEVNULL)
+            source = discord.FFmpegPCMAudio(
+                ytdlp_proc.stdout, pipe=True,
+                executable=config.FFMPEG_PATH,
+                options="-vn",
+            )
+        except Exception as e:
+            print(f"[yt-dlp pipe] Erro ao iniciar: {e}")
+
+    if source is None:
+        print(f"MUSICA SKIP: não foi possível obter áudio para {musica.get('titulo', '?')}")
+        return await tocar_proxima(guild, bot)
 
     start_time = time.time()
     def after(error):
+        # Cleanup yt-dlp subprocess
+        if ytdlp_proc:
+            try: ytdlp_proc.kill()
+            except: pass
         duracao = time.time() - start_time
         if duracao < 3 and not musica.get("skip_fallback") and musica.get("falhas", 0) < 2:
             print(f"MUSICA FAIL {musica['titulo']} falhou em {duracao:.2f}s. Tentando fallback ({musica.get('falhas', 0)+1}/2)...")
             musica["falhas"] = musica.get("falhas", 0) + 1
             musica["needs_resolve"] = True
             musica["needs_fallback"] = True
-            # Força nova instância do yt-dlp pra pegar tokens frescos
             global _ydl_instance
             _ydl_instance = None
             get_fila(guild.id).insert(0, musica)
