@@ -254,12 +254,9 @@ def _iniciar_status_dono(channel_id, bot, frase):
 async def resolver_url(entry):
     loop = asyncio.get_event_loop()
     target = entry.get("pagina") or entry.get("webpage_url") or entry.get("url", "")
-    
-    if entry.get("needs_fallback") and entry.get("titulo"):
-        # Se YouTube der 403, tenta buscar no SoundCloud como fallback definitivo
-        titulo_limpo = entry["titulo"].replace("Official Audio", "").replace("Official Video", "").replace("Lyric Video", "").strip()
-        target = "scsearch1:" + titulo_limpo + (" " + entry["canal"] if entry.get("canal") and entry["canal"] != "Desconhecido" else "")
-        print(f"[Fallback] Buscando no SoundCloud: {target}")
+    is_fallback = entry.get("needs_fallback") and entry.get("titulo")
+    if is_fallback:
+        print(f"[Fallback] Baixando áudio localmente para driblar DRM/403: {target}")
     elif not target and entry.get("titulo"):
         target = "ytsearch:" + entry["titulo"]
 
@@ -268,12 +265,25 @@ async def resolver_url(entry):
 
     for tentativa in range(2):
         try:
-            ydl = get_ydl()
-            info = await loop.run_in_executor(None, lambda: ydl.extract_info(target, download=False))
-            if info and "entries" in info and info["entries"]:
-                info = info["entries"][0]
+            if is_fallback:
+                import os, uuid
+                if not os.path.exists("cache_music"):
+                    os.makedirs("cache_music", exist_ok=True)
+                opts = dict(YDL_OPTIONS_SINGLE)
+                opts["outtmpl"] = f"cache_music/%(id)s_{str(uuid.uuid4())[:8]}.%(ext)s"
+                ydl_local = yt_dlp.YoutubeDL(opts)
+                info = await loop.run_in_executor(None, lambda: ydl_local.extract_info(target, download=True))
+                if info and "entries" in info and info["entries"]:
+                    info = info["entries"][0]
+                local_url = ydl_local.prepare_filename(info)
+            else:
+                ydl = get_ydl()
+                info = await loop.run_in_executor(None, lambda: ydl.extract_info(target, download=False))
+                if info and "entries" in info and info["entries"]:
+                    info = info["entries"][0]
+                local_url = info.get("url")
             
-            if info and "url" in info:
+            if info and local_url:
                 novo_titulo = info.get("title")
                 if novo_titulo == "videoplayback" or not novo_titulo:
                     novo_titulo = entry.get("titulo") or entry.get("title", "Desconhecido")
@@ -281,7 +291,7 @@ async def resolver_url(entry):
                     novo_titulo = entry.get("titulo") or novo_titulo
                     
                 return {
-                    "url": info["url"],
+                    "url": local_url,
                     "titulo": novo_titulo,
                     "duracao": entry.get("duracao") or info.get("duration", 0),
                     "thumbnail": entry.get("thumbnail") or info.get("thumbnail", None),
@@ -290,7 +300,8 @@ async def resolver_url(entry):
                     "titulo_embed": entry.get("titulo_embed"),
                     "needs_resolve": False,
                     "falhas": entry.get("falhas", 0),
-                    "http_headers": info.get("http_headers", {})
+                    "http_headers": info.get("http_headers", {}),
+                    "is_local": is_fallback
                 }
         except Exception as e:
             print("MUSICA ERRO resolver_url: " + type(e).__name__ + ": " + str(e))
@@ -1049,6 +1060,13 @@ async def tocar_proxima(guild, bot):
 
     start_time = time.time()
     def after(error):
+        if musica.get("is_local") and musica.get("url"):
+            try:
+                import os
+                if os.path.exists(musica["url"]):
+                    os.remove(musica["url"])
+            except: pass
+
         duracao = time.time() - start_time
         if duracao < 3 and not musica.get("skip_fallback") and musica.get("falhas", 0) < 2:
             print(f"MUSICA FAIL {musica['titulo']} falhou em {duracao:.2f}s. Tentando fallback ({musica.get('falhas', 0)+1}/2)...")
