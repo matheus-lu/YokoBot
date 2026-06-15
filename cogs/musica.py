@@ -104,7 +104,7 @@ async def resolver_spotify(url):
 
 # ── Constantes yt-dlp ──────────────────────────────────────
 YDL_OPTIONS_SINGLE = {
-    "format": "bestaudio/best",
+    "format": "bestaudio[ext=webm]/bestaudio/best",
     "quiet": False,
     "noplaylist": True,
     "source_address": "0.0.0.0",
@@ -112,17 +112,21 @@ YDL_OPTIONS_SINGLE = {
     "cookiefile": config.COOKIES_PATH,
     "js_runtimes": {"node": {"path": "/usr/bin/node"}},
     "extractor_args": {
-        "youtube": {"player_client": ["web"]},
+        "youtube": {"player_client": ["default", "-android_sdkless"]},
         "youtubepot-bgutilscript": {"server_home": ["/application/bgutil-ytdlp-pot-provider/server"]},
     },
 }
 
 _ydl_instance = None
+_ydl_created_at = 0
 
 def get_ydl():
-    global _ydl_instance
-    if _ydl_instance is None:
+    """Retorna instancia yt-dlp, recriando a cada 10 min pra evitar tokens expirados."""
+    global _ydl_instance, _ydl_created_at
+    agora = time.time()
+    if _ydl_instance is None or (agora - _ydl_created_at) > 600:
         _ydl_instance = yt_dlp.YoutubeDL(YDL_OPTIONS_SINGLE)
+        _ydl_created_at = agora
     return _ydl_instance
 
 FFMPEG_OPTIONS = {
@@ -1001,11 +1005,14 @@ async def tocar_proxima(guild, bot):
     start_time = time.time()
     def after(error):
         duracao = time.time() - start_time
-        if duracao < 3 and not musica.get("skip_fallback") and musica.get("falhas", 0) < 1:
-            print(f"MUSICA FAIL {musica['titulo']} falhou em {duracao:.2f}s. Tentando fallback...")
+        if duracao < 3 and not musica.get("skip_fallback") and musica.get("falhas", 0) < 2:
+            print(f"MUSICA FAIL {musica['titulo']} falhou em {duracao:.2f}s. Tentando fallback ({musica.get('falhas', 0)+1}/2)...")
             musica["falhas"] = musica.get("falhas", 0) + 1
             musica["needs_resolve"] = True
             musica["needs_fallback"] = True
+            # Força nova instância do yt-dlp pra pegar tokens frescos
+            global _ydl_instance
+            _ydl_instance = None
             get_fila(guild.id).insert(0, musica)
         asyncio.run_coroutine_threadsafe(tocar_proxima(guild, bot), bot.loop)
 
