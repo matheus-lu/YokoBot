@@ -694,10 +694,11 @@ class PlayerLayoutVazio(discord.ui.LayoutView):
         return True
 
     async def _callback_play(self, interaction: discord.Interaction):
-        if not interaction.user.voice:
+        if not interaction.user.voice or not interaction.user.voice.channel:
             await interaction.response.send_message("Você precisa estar em um canal de voz!", ephemeral=True)
             return
         await interaction.response.defer(ephemeral=True)
+        channel_name = interaction.user.voice.channel.name
         vc = interaction.guild.voice_client
         if vc is None:
             try:
@@ -718,7 +719,7 @@ class PlayerLayoutVazio(discord.ui.LayoutView):
                 await interaction.followup.send("Erro ao conectar: " + str(e), ephemeral=True)
                 return
         await atualizar_embed_player(interaction.guild, estado="sem_musica")
-        await interaction.followup.send("✅ Bot entrou em **" + interaction.user.voice.channel.name + "**! Use + Adicionar.", ephemeral=True)
+        await interaction.followup.send("✅ Bot entrou em **" + channel_name + "**! Use + Adicionar.", ephemeral=True)
 
 
 class PlayerLayoutSemMusica(discord.ui.LayoutView):
