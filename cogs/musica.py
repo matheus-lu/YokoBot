@@ -1032,29 +1032,33 @@ async def tocar_proxima(guild, bot):
         tocando_agora.pop(guild.id, None)
         return
     ffmpeg_opts = dict(FFMPEG_OPTIONS)
-    headers = musica.get("http_headers", {})
-    headers_str = ""
     
-    if headers:
-        for k, v in headers.items():
-            if k.lower() == "user-agent":
-                ffmpeg_opts["before_options"] += f' -user_agent "{v}"'
-            elif k.lower() not in ("cookie",):
-                headers_str += f"{k}: {v}\r\n"
-                
-    # Injeta cookies do yt-dlp no FFmpeg para evitar 403 em URLs autenticadas
-    try:
-        import http.cookiejar
-        cj = http.cookiejar.MozillaCookieJar(config.COOKIES_PATH)
-        cj.load(ignore_discard=True, ignore_expires=True)
-        cookie_str = "; ".join([f"{c.name}={c.value}" for c in cj if "youtube.com" in c.domain])
-        if cookie_str:
-            headers_str += f"Cookie: {cookie_str}\r\n"
-    except Exception as e:
-        print(f"Erro ao carregar cookies no ffmpeg: {e}")
+    if musica.get("is_local"):
+        ffmpeg_opts["before_options"] = ""
+    else:
+        headers = musica.get("http_headers", {})
+        headers_str = ""
+        
+        if headers:
+            for k, v in headers.items():
+                if k.lower() == "user-agent":
+                    ffmpeg_opts["before_options"] += f' -user_agent "{v}"'
+                elif k.lower() not in ("cookie",):
+                    headers_str += f"{k}: {v}\r\n"
+                    
+        # Injeta cookies do yt-dlp no FFmpeg para evitar 403 em URLs autenticadas
+        try:
+            import http.cookiejar
+            cj = http.cookiejar.MozillaCookieJar(config.COOKIES_PATH)
+            cj.load(ignore_discard=True, ignore_expires=True)
+            cookie_str = "; ".join([f"{c.name}={c.value}" for c in cj if "youtube.com" in c.domain])
+            if cookie_str:
+                headers_str += f"Cookie: {cookie_str}\r\n"
+        except Exception as e:
+            print(f"Erro ao carregar cookies no ffmpeg: {e}")
 
-    if headers_str:
-        ffmpeg_opts["before_options"] += f' -headers "{headers_str}"'
+        if headers_str:
+            ffmpeg_opts["before_options"] += f' -headers "{headers_str}"'
             
     source = discord.FFmpegPCMAudio(musica["url"], executable=config.FFMPEG_PATH, **ffmpeg_opts)
 
