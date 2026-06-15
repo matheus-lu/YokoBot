@@ -456,18 +456,18 @@ class PlayerLayoutTocando(discord.ui.LayoutView):
     async def _callback_pausar(self, interaction: discord.Interaction, button):
         vc = interaction.guild.voice_client
         bot = interaction.client
-        if vc and vc.is_playing():
-            vc.pause()
-            if tocando_agora.get(interaction.guild.id):
-                await atualizar_status_canal_voz(interaction.guild, "⏸️ " + tocando_agora[interaction.guild.id]["titulo"], bot=bot)
-        elif vc and vc.is_paused():
-            vc.resume()
-            if tocando_agora.get(interaction.guild.id):
-                await atualizar_status_canal_voz(interaction.guild, tocando_agora[interaction.guild.id]["titulo"], bot=bot)
-        else:
+        if not vc or (not vc.is_playing() and not vc.is_paused()):
             await interaction.response.send_message("Nenhuma música tocando.", ephemeral=True)
             return
         await interaction.response.defer()
+        if vc.is_playing():
+            vc.pause()
+            if tocando_agora.get(interaction.guild.id):
+                await atualizar_status_canal_voz(interaction.guild, "⏸️ " + tocando_agora[interaction.guild.id]["titulo"], bot=bot)
+        elif vc.is_paused():
+            vc.resume()
+            if tocando_agora.get(interaction.guild.id):
+                await atualizar_status_canal_voz(interaction.guild, tocando_agora[interaction.guild.id]["titulo"], bot=bot)
         await atualizar_embed_player(interaction.guild, guild_id=interaction.guild.id)
 
     async def _callback_pular(self, interaction: discord.Interaction, button):
@@ -1042,18 +1042,18 @@ class _PersistentMusicaHandler(discord.ui.View):
     async def _pausar(self, interaction: discord.Interaction, button: Button):
         vc = interaction.guild.voice_client
         bot = interaction.client
-        if vc and vc.is_playing():
-            vc.pause()
-            if tocando_agora.get(interaction.guild.id):
-                await atualizar_status_canal_voz(interaction.guild, "⏸️ " + tocando_agora[interaction.guild.id]["titulo"], bot=bot)
-        elif vc and vc.is_paused():
-            vc.resume()
-            if tocando_agora.get(interaction.guild.id):
-                await atualizar_status_canal_voz(interaction.guild, tocando_agora[interaction.guild.id]["titulo"], bot=bot)
-        else:
+        if not vc or (not vc.is_playing() and not vc.is_paused()):
             await interaction.response.send_message("Nenhuma música tocando.", ephemeral=True)
             return
         await interaction.response.defer()
+        if vc.is_playing():
+            vc.pause()
+            if tocando_agora.get(interaction.guild.id):
+                await atualizar_status_canal_voz(interaction.guild, "⏸️ " + tocando_agora[interaction.guild.id]["titulo"], bot=bot)
+        elif vc.is_paused():
+            vc.resume()
+            if tocando_agora.get(interaction.guild.id):
+                await atualizar_status_canal_voz(interaction.guild, tocando_agora[interaction.guild.id]["titulo"], bot=bot)
         await atualizar_embed_player(interaction.guild, guild_id=interaction.guild.id)
 
     @discord.ui.button(label="pular", custom_id="musica_pular", row=0)
