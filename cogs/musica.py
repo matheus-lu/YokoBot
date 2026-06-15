@@ -137,7 +137,6 @@ YDL_OPTIONS_SINGLE = {
     "noplaylist": True,
     "source_address": "0.0.0.0",
     "ignoreerrors": False,
-    "cookiefile": config.COOKIES_PATH,
     "js_runtimes": {"node": {"path": "/usr/bin/node"}},
     "extractor_args": {
         "youtube": {"player_client": ["ios", "android", "web"]},
@@ -145,17 +144,20 @@ YDL_OPTIONS_SINGLE = {
     },
 }
 
-_ydl_instance = None
-_ydl_created_at = 0
+_ydl_instances = {True: None, False: None}
+_ydl_created_at = {True: 0, False: 0}
 
-def get_ydl():
-    """Retorna instancia yt-dlp, recriando a cada 10 min pra evitar tokens expirados."""
-    global _ydl_instance, _ydl_created_at
+def get_ydl(use_cookies=False):
+    """Retorna instancia yt-dlp, recriando a cada 10 min. Tenta sem cookies primeiro."""
+    global _ydl_instances, _ydl_created_at
     agora = time.time()
-    if _ydl_instance is None or (agora - _ydl_created_at) > 600:
-        _ydl_instance = yt_dlp.YoutubeDL(YDL_OPTIONS_SINGLE)
-        _ydl_created_at = agora
-    return _ydl_instance
+    if _ydl_instances[use_cookies] is None or (agora - _ydl_created_at[use_cookies]) > 600:
+        opts = dict(YDL_OPTIONS_SINGLE)
+        if use_cookies:
+            opts["cookiefile"] = config.COOKIES_PATH
+        _ydl_instances[use_cookies] = yt_dlp.YoutubeDL(opts)
+        _ydl_created_at[use_cookies] = agora
+    return _ydl_instances[use_cookies]
 
 FFMPEG_OPTIONS = {
     "before_options": (
@@ -264,7 +266,9 @@ async def resolver_url(entry):
 
     for tentativa in range(2):
         try:
-            ydl = get_ydl()
+            # Tenta com cookies apenas se for a segunda tentativa da busca atual, ou se já houveram falhas passadas
+            use_cookies = (tentativa == 1) or entry.get("falhas", 0) > 0
+            ydl = get_ydl(use_cookies=use_cookies)
             info = await loop.run_in_executor(None, lambda: ydl.extract_info(target, download=False))
             if info and "entries" in info and info["entries"]:
                 info = info["entries"][0]
@@ -290,8 +294,8 @@ async def resolver_url(entry):
                 }
         except Exception as e:
             print("MUSICA ERRO resolver_url: " + type(e).__name__ + ": " + str(e))
-            global _ydl_instance
-            _ydl_instance = None
+            global _ydl_instances
+            _ydl_instances = {True: None, False: None}
             
         if tentativa == 0 and entry.get("titulo"):
             target = "ytsearch1:" + entry["titulo"] + (" " + entry["canal"] if entry.get("canal") and entry["canal"] != "Desconhecido" else "")
@@ -1037,8 +1041,8 @@ async def tocar_proxima(guild, bot):
             musica["falhas"] = musica.get("falhas", 0) + 1
             musica["needs_resolve"] = True
             musica["needs_fallback"] = True
-            global _ydl_instance
-            _ydl_instance = None
+            global _ydl_instances
+            _ydl_instances = {True: None, False: None}
             get_fila(guild.id).insert(0, musica)
         asyncio.run_coroutine_threadsafe(tocar_proxima(guild, bot), bot.loop)
 
