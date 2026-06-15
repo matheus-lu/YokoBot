@@ -140,7 +140,7 @@ YDL_OPTIONS_SINGLE = {
     "cookiefile": config.COOKIES_PATH,
     "js_runtimes": {"node": {"path": "/usr/bin/node"}},
     "extractor_args": {
-        "youtube": {"player_client": ["default", "-android_sdkless"]},
+        "youtube": {"player_client": ["ios", "android", "web"]},
         "youtubepot-bgutilscript": {"server_home": ["/application/bgutil-ytdlp-pot-provider/server"]},
     },
 }
@@ -1015,58 +1015,22 @@ async def tocar_proxima(guild, bot):
         filas.pop(guild.id, None)
         tocando_agora.pop(guild.id, None)
         return
-        
-    # ── Obter fonte de áudio ──────────────────────────────────
-    import subprocess as _sp, sys as _sys
-    source = None
-    ytdlp_proc = None
-    target = musica.get("pagina") or musica.get("webpage_url") or musica.get("url", "")
-    is_yt = target and ("youtube.com" in target or "youtu.be" in target)
-
-    # Método 1 Principal: cobalt.tools — stream via servidores externos (evita 403 do IP do datacenter)
-    if is_yt:
-        print(f"[Cobalt] Tentando stream externo para: {musica.get('titulo', '?')}")
-        cobalt_url = await _cobalt_audio_url(target)
-        if cobalt_url:
-            print(f"[Cobalt] ✅ Stream obtido!")
-            source = discord.FFmpegPCMAudio(
-                cobalt_url, executable=config.FFMPEG_PATH,
-                before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
-                options="-vn",
-            )
-
-    # Método 2 (fallback): yt-dlp pipe direto
-    if source is None and target:
-        ytdlp_cmd = [
-            _sys.executable, '-m', 'yt_dlp',
-            '-f', 'bestaudio[ext=webm]/bestaudio/best',
-            '--cookies', config.COOKIES_PATH,
-            '--extractor-args', 'youtube:player_client=default,-android_sdkless',
-            '--extractor-args', 'youtubepot-bgutilscript:server_home=/application/bgutil-ytdlp-pot-provider/server',
-            '-o', '-',
-            '--quiet', '--no-warnings', '--no-playlist',
-            target,
-        ]
-        try:
-            ytdlp_proc = _sp.Popen(ytdlp_cmd, stdout=_sp.PIPE, stderr=_sp.DEVNULL)
-            source = discord.FFmpegPCMAudio(
-                ytdlp_proc.stdout, pipe=True,
-                executable=config.FFMPEG_PATH,
-                options="-vn",
-            )
-        except Exception as e:
-            print(f"[yt-dlp pipe] Erro ao iniciar: {e}")
-
-    if source is None:
-        print(f"MUSICA SKIP: não foi possível obter áudio para {musica.get('titulo', '?')}")
-        return await tocar_proxima(guild, bot)
+    ffmpeg_opts = dict(FFMPEG_OPTIONS)
+    headers = musica.get("http_headers", {})
+    if headers:
+        headers_str = ""
+        for k, v in headers.items():
+            if k.lower() == "user-agent":
+                ffmpeg_opts["before_options"] += f' -user_agent "{v}"'
+            else:
+                headers_str += f"{k}: {v}\r\n"
+        if headers_str:
+            ffmpeg_opts["before_options"] += f' -headers "{headers_str}"'
+            
+    source = discord.FFmpegPCMAudio(musica["url"], executable=config.FFMPEG_PATH, **ffmpeg_opts)
 
     start_time = time.time()
     def after(error):
-        # Cleanup yt-dlp subprocess
-        if ytdlp_proc:
-            try: ytdlp_proc.kill()
-            except: pass
         duracao = time.time() - start_time
         if duracao < 3 and not musica.get("skip_fallback") and musica.get("falhas", 0) < 2:
             print(f"MUSICA FAIL {musica['titulo']} falhou em {duracao:.2f}s. Tentando fallback ({musica.get('falhas', 0)+1}/2)...")
