@@ -1402,8 +1402,24 @@ class MusicaCog(commands.Cog):
         if member.id == self.bot.user.id and before.channel is None and after.channel is not None:
             guild = member.guild
             if guild.id not in status_canal_original:
-                original = status_canal_cache.get(after.channel.id, "")
-                status_canal_original[guild.id] = original
+                if after.channel.id in status_canal_cache:
+                    status_canal_original[guild.id] = status_canal_cache[after.channel.id]
+
+        if member.id == self.bot.user.id and before.channel is not None and after.channel is not None and before.channel != after.channel:
+            guild = member.guild
+            if guild.id in status_canal_original:
+                old_status = status_canal_original.pop(guild.id, "")
+                try:
+                    await self.bot.http.request(
+                        discord.http.Route("PUT", "/channels/{channel_id}/voice-status", channel_id=before.channel.id),
+                        json={"status": old_status},
+                    )
+                except Exception:
+                    pass
+            if after.channel.id in status_canal_cache:
+                status_canal_original[guild.id] = status_canal_cache[after.channel.id]
+            if guild.id in tocando_agora:
+                await atualizar_status_canal_voz(guild, tocando_agora[guild.id]["titulo"], bot=self.bot)
 
         if member.id == self.bot.user.id and before.channel is not None and after.channel is None:
             guild = member.guild
