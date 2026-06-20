@@ -506,16 +506,19 @@ class PlayerLayoutTocando(discord.ui.LayoutView):
         if not vc or (not vc.is_playing() and not vc.is_paused()):
             await interaction.response.send_message("Nenhuma música tocando.", ephemeral=True)
             return
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=True)
         if vc.is_playing():
             vc.pause()
             if tocando_agora.get(interaction.guild.id):
                 await atualizar_status_canal_voz(interaction.guild, "⏸️ " + tocando_agora[interaction.guild.id]["titulo"], bot=bot)
+            acao = "Pausado"
         elif vc.is_paused():
             vc.resume()
             if tocando_agora.get(interaction.guild.id):
                 await atualizar_status_canal_voz(interaction.guild, tocando_agora[interaction.guild.id]["titulo"], bot=bot)
+            acao = "Retomado"
         await atualizar_embed_player(interaction.guild, guild_id=interaction.guild.id)
+        await interaction.followup.send(f"{acao} com sucesso!", ephemeral=True)
 
     async def _callback_pular(self, interaction: discord.Interaction, button):
         vc = interaction.guild.voice_client
@@ -1118,16 +1121,19 @@ class _PersistentMusicaHandler(discord.ui.View):
         if not vc or (not vc.is_playing() and not vc.is_paused()):
             await interaction.response.send_message("Nenhuma música tocando.", ephemeral=True)
             return
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=True)
         if vc.is_playing():
             vc.pause()
             if tocando_agora.get(interaction.guild.id):
                 await atualizar_status_canal_voz(interaction.guild, "⏸️ " + tocando_agora[interaction.guild.id]["titulo"], bot=bot)
+            acao = "Pausado"
         elif vc.is_paused():
             vc.resume()
             if tocando_agora.get(interaction.guild.id):
                 await atualizar_status_canal_voz(interaction.guild, tocando_agora[interaction.guild.id]["titulo"], bot=bot)
+            acao = "Retomado"
         await atualizar_embed_player(interaction.guild, guild_id=interaction.guild.id)
+        await interaction.followup.send(f"{acao} com sucesso!", ephemeral=True)
 
     @discord.ui.button(label="pular", custom_id="musica_pular", row=0)
     async def _pular(self, interaction: discord.Interaction, button: Button):
